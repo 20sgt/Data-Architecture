@@ -9,3 +9,7 @@ Documentation/Slides links are not accessible publicly. Must be logged in with a
 - [GitHub Repository](https://github.com/20sgt/Data-Architecture)
 - [Documentation](https://docs.google.com/document/d/1y_hW02plKa5s89caJt-dc-Sf21EAM0dQNJ3ot7Cwv6s/edit?usp=sharing)
 - [Slides](https://docs.google.com/presentation/d/1v0ImK7iBYsuHg1ciyDIfsG_P-4kD4YRl8uSPw1vbQmQ/edit?usp=sharing)
+
+## Architecture
+
+- [ERD](https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships)
