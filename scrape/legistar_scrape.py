@@ -29,6 +29,7 @@ import logging
 import argparse
 import dataclasses
 from io import BytesIO
+from pathlib import Path
 from datetime import date, datetime, timedelta
 
 import requests
@@ -310,7 +311,9 @@ def main() -> None:
     ap.add_argument("--from", dest="start", help="introduced-date start YYYY-MM-DD")
     ap.add_argument("--to", dest="end", help="introduced-date end YYYY-MM-DD")
     ap.add_argument("--full-text", action="store_true", help="download + extract Leg Ver PDFs")
-    ap.add_argument("--out", help="write results as JSON to this path")
+    ap.add_argument("--out", help="write results as JSON array to this path")
+    ap.add_argument("--raw-dir", dest="raw_dir",
+                    help="write one JSON file per matter to this directory (raw landing zone)")
     args = ap.parse_args()
 
     if args.file:
@@ -322,7 +325,21 @@ def main() -> None:
     else:
         ap.error("provide --file OR both --from and --to")
 
-    if args.out:
+    if args.raw_dir:
+        out_dir = Path(args.raw_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        written = 0
+        for m in matters:
+            if not m.file_number:
+                continue
+            path = out_dir / f"{m.file_number}.json"
+            path.write_text(
+                json.dumps({**dataclasses.asdict(m), "lifecycle": m.lifecycle},
+                           indent=2, ensure_ascii=False)
+            )
+            written += 1
+        log.info("wrote %d matter files -> %s", written, args.raw_dir)
+    elif args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump([dataclasses.asdict(m) for m in matters], f, indent=2)
         log.info("wrote %d matters -> %s", len(matters), args.out)
