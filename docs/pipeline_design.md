@@ -62,9 +62,8 @@ The weekly job therefore scrapes the union of:
    status). SF runs ~30–100 files/week; the open set stays in the low hundreds — fine at 1 req/sec.
 
 The raw layer stays **append-only**: each scrape writes a new dated partition, never mutates an
-old one. The transform dedupes by `matter_id` taking the latest `scraped_at`. This also gives the
-**weekly-change use case for free**: diff this week's snapshot of `dim_matter.status` against
-last week's partition.
+old one. The weekly-change use case is served by comparing the latest `is_current = true` rows in
+`dim_matter` this week against the previous week's snapshot (see §6.1 for the SCD type 2 decision).
 
 ## 4. Natural keys and grain
 
@@ -81,22 +80,35 @@ upserts and debugging.
 
 ## 5. Cross-slice contract (legislation ↔ meeting)
 
-- **`fact_vote.meeting_sk` / `fact_matter_action.meeting_sk` are NULLABLE.** The scraper only
-  knows `(committee/body name, action date)`; `meeting_id` comes from the calendar scrape.
-  The transform resolves `meeting_sk` via a `(committee_name, meeting_date)` lookup **when
-  meeting data is present**, else leaves NULL. Neither slice's load may depend on the other's
-  having run (backfill order independence).
-- **Shared dims need one owner each** (proposal: `dim_committee` → legislation slice, since
-  `in_control` already provides the committee vocabulary; `dim_person` → whoever lands first,
-  but the name→person_id seed map lives in this slice).
+- **`fact_vote.meeting_sk` / `fact_matter_action.meeting_sk` are NULLABLE.** The scraper emits
+  `(body name, action date)`; `meeting_id` comes from the calendar scrape. See the join strategy
+  below.
+- **Join key: integer `committee_sk`, not a committee name string.** `spike/data/bodies.json`
+  (Legistar API) gives authoritative `BodyId → BodyName` pairs. `dim_committee` is seeded from
+  this file, so `committee_id` is a stable integer. The staging→star transform maps
+  `stg_actions.body` (text) to `dim_committee.committee_sk` **once**, failing loudly on unknown
+  names. The contract with the meeting slice then becomes:
+  `(committee_sk INT, meeting_date DATE) → meeting_sk INT` — an integer join, not fragile
+  text-matching.
+- **Neither slice's load may depend on the other's having run.** `meeting_sk` stays NULL until the
+  meeting data is present; a subsequent transform pass fills it in.
+- **Shared dims — proposed ownership:** `dim_committee` → legislation slice (seeded from
+  `bodies.json`); `dim_person` → legislation slice (seeded from `spike/data/persons.json` +
+  vote name conformance). Teammate's meeting scraper looks up `committee_sk` by `committee_id`
+  from the pre-seeded dim.
 
 ## 6. Proposed changes to the group ERD (please review)
 
-1. **`dim_matter`: add status fields** — `status text`, `lifecycle text` (derived bucket:
-   passed / in_works / other), `final_action_date date`, `enactment_date date`,
-   `enactment_number text`. Without these, use cases "what passed" and "weekly changes" can't be
-   answered. Status mutates → **SCD type 1** (overwrite): `fact_matter_action` already preserves
-   the full history, so versioning the dim would duplicate it.
+1. **`dim_matter`: add status fields using SCD type 2** — `status text`, `lifecycle text`
+   (derived bucket: passed / in_works / other), `final_action_date date`, `enactment_date date`,
+   `enactment_number text`, plus the versioning columns already present on `dim_person`:
+   `effective_from date NN`, `effective_to date`, `is_current boolean NN`.
+   When a matter's status changes (e.g. `in_works` → `passed`), the old row is closed out
+   (`effective_to`, `is_current = false`) and a new row is inserted (new `matter_sk`). This
+   preserves every status transition — you can answer "when did this bill pass?" directly from the
+   dim, and the weekly-diff use case is a join of two `WHERE is_current = true` snapshots.
+   Queries for current state filter `WHERE is_current = true`. Consistent with how `dim_person`
+   is already modeled in the group ERD.
 2. **`fact_matter_action`: add `action_result text`** (Pass/Fail). Mapping: `action_type_code` ←
    action (e.g. RECOMMENDED), `action_text` ← free text, `action_result` ← result column.
 3. **`meeting_sk` nullable** on both fact tables (see §5).
