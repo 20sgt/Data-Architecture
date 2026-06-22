@@ -15,8 +15,9 @@
 #     databricks configure --token   # host = your workspace URL, token = PAT from Settings
 #     databricks fs cp warehouse/exports/ /Volumes/main/legislation/parquet/ --recursive
 #
+# Produce the Parquet first with:  python warehouse/export_parquet.py
 # After running, query with:
-#   SELECT * FROM main.legislation.dim_matter WHERE is_current = true LIMIT 20
+#   SELECT * FROM main.legislation.dim_matter LIMIT 20   (dim_matter is flat; status lives in facts)
 
 # COMMAND ----------
 
@@ -26,15 +27,13 @@ SCHEMA     = "legislation"
 VOLUME     = "parquet"
 PARQUET_DIR = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}"
 
+# The full milestone-3 gold star (matches warehouse/export_parquet.py).
 TABLES = [
-    "dim_committee",
-    "dim_person",
-    "dim_matter",
-    "dim_document",
-    "fact_vote",
-    "fact_matter_action",
-    "bridge_matter_sponsor",
-    "bridge_matter_document",
+    "dim_committee", "dim_person", "dim_matter", "dim_subject", "dim_document",
+    "dim_meeting", "dim_action_type",
+    "fact_matter_action", "fact_vote", "fact_committee_membership",
+    "bridge_matter_subject", "bridge_matter_sponsor", "bridge_matter_document",
+    "bridge_meeting_document",
 ]
 
 # COMMAND ----------
@@ -64,19 +63,23 @@ spark.sql("SHOW TABLES IN legislation").show()
 
 # COMMAND ----------
 
-# Quick sanity check: current matters with their status
+# Quick sanity check: matters with their LATEST action (status is derived from facts in the
+# milestone-3 flat dim_matter) and primary sponsor.
 spark.sql("""
     SELECT m.matter_file,
            m.matter_type,
-           m.status,
-           m.lifecycle,
-           p.full_name   AS primary_sponsor,
-           m.effective_from
+           fa.action_type_code AS latest_action,
+           p.full_name         AS primary_sponsor
     FROM   dim_matter m
-    LEFT JOIN bridge_matter_sponsor s ON s.matter_sk = m.matter_sk AND s.sponsor_type = 'primary'
+    LEFT JOIN bridge_matter_sponsor s ON s.matter_sk = m.matter_sk AND s.sponsor_type = 'Primary'
     LEFT JOIN dim_person p            ON p.person_sk  = s.person_sk
-    WHERE  m.is_current = true
-    ORDER  BY m.effective_from DESC
+    LEFT JOIN (
+        SELECT matter_sk, action_type_code,
+               ROW_NUMBER() OVER (PARTITION BY matter_sk
+                                  ORDER BY action_date DESC NULLS LAST) AS rn
+        FROM fact_matter_action
+    ) fa ON fa.matter_sk = m.matter_sk AND fa.rn = 1
+    ORDER  BY m.matter_file DESC
     LIMIT  20
 """).show(truncate=False)
 

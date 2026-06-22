@@ -13,14 +13,17 @@ Typical use (after scraping):
 """
 
 import argparse
+import sys
 from datetime import date
 from pathlib import Path
 
 import duckdb
 
-from warehouse.load_meeting_staging import load_partition as load_meetings
-from warehouse.load_staging import load_partition as load_matters
-from warehouse.transform_gold import DB_PATH, build, ensure_schema
+sys.path.insert(0, str(Path(__file__).parent.parent))   # so `warehouse`/`scrape` import as scripts
+
+from warehouse.load_meeting_staging import load_partition as load_meetings  # noqa: E402
+from warehouse.load_staging import load_partition as load_matters  # noqa: E402
+from warehouse.transform_gold import DB_PATH, build, ensure_schema  # noqa: E402
 
 
 def main():

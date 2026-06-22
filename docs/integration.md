@@ -60,6 +60,9 @@ python warehouse/run_local.py \
     --meeting-raw raw/meetings/ingest_date=2026-06-21 \
     --matters-raw raw/matters/ingest_date=2026-06-21 \
     --date 2026-06-21
+
+# hand off to Databricks: export gold -> Parquet, then run databricks/01_load_legislation.py
+python warehouse/export_parquet.py            # -> warehouse/exports/*.parquet
 ```
 
 ## Resolved here (were the merge prerequisites)

@@ -56,11 +56,17 @@ LEG_MATTER = {
     "attachments": [{"name": "Leg Ver1",
                      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=55501&GUID=ABC"}],
     "actions": [
-        {"date": "6/15/2026", "body": "Land Use and Transportation Committee",
+        # overlaps the meeting — body uses the "&" variant to prove canonical committee matching
+        {"date": "6/15/2026", "body": "Land Use & Transportation Committee",
          "action": "RECOMMENDED", "result": "Pass", "history_url": "h1",
-         "votes": [{"person": "Myrna Melgar", "value": "Aye"}]},            # overlaps the meeting
+         "votes": [{"person": "Myrna Melgar", "value": "Aye"}]},
         {"date": "5/1/2026", "body": "Board of Supervisors",
-         "action": "REFERRED", "result": "", "history_url": "h2", "votes": []},  # legislation-only
+         "action": "REFERRED", "result": "", "history_url": "h2", "votes": []},     # legislation-only
+        # two DISTINCT labels that both normalize to OTHER — must NOT collapse into one row
+        {"date": "5/1/2026", "body": "Board of Supervisors",
+         "action": "HEARING HELD", "result": "", "history_url": "h3", "votes": []},
+        {"date": "", "body": "Board of Supervisors",
+         "action": "PUBLIC COMMENT CLOSED", "result": "", "history_url": "h4", "votes": []},  # dateless
     ],
     "full_text": None,
 }
@@ -112,6 +118,13 @@ def main():
     check("REFERRED(260422) backfilled: 1 row, source=legislation, meeting_sk NULL",
           ref == (1, "legislation", True), str(ref))
 
+    # two DISTINCT labels normalizing to OTHER must NOT collapse (review finding #1)
+    n_other = con.execute("""
+        SELECT COUNT(*) FROM fact_matter_action fa JOIN dim_matter m ON m.matter_sk=fa.matter_sk
+        WHERE m.matter_file='260422' AND fa.action_type_code='OTHER'
+    """).fetchone()[0]
+    check("two distinct OTHER actions preserved (not collapsed)", n_other == 2, str(n_other))
+
     # fact_vote dedup: Melgar on 260422 appears once (the overlapping legislation vote is dropped)
     mv = con.execute("""
         SELECT COUNT(*), MIN(source), MIN(body_scope)
@@ -135,6 +148,23 @@ def main():
     # meeting docs still present
     n_mdocs = con.execute("SELECT COUNT(*) FROM dim_document WHERE document_source LIKE 'meeting%' OR document_source='transcript'").fetchone()[0]
     check("meeting docs present (agenda/minutes/transcript)", n_mdocs == 3, str(n_mdocs))
+
+    # idempotency: re-load both stagings into a LATER partition (incl. the dateless action) and
+    # rebuild — counts must be identical (review finding #2: no dup on rescrape / NULL-date dedup).
+    fma0 = con.execute("SELECT COUNT(*) FROM fact_matter_action").fetchone()[0]
+    fv0 = con.execute("SELECT COUNT(*) FROM fact_vote").fetchone()[0]
+    with tempfile.TemporaryDirectory() as tmp:
+        mpart = write_partition([assemble_committee_meeting()], Path(tmp) / "meetings", "2026-07-01")
+        load_meetings(con, mpart, date(2026, 7, 1))
+        lpart = Path(tmp) / "matters" / "ingest_date=2026-07-01"
+        lpart.mkdir(parents=True, exist_ok=True)
+        (lpart / "260422.json").write_text(json.dumps(LEG_MATTER))
+        load_matters(con, lpart, date(2026, 7, 1))
+    gold.build(con)
+    fma1 = con.execute("SELECT COUNT(*) FROM fact_matter_action").fetchone()[0]
+    fv1 = con.execute("SELECT COUNT(*) FROM fact_vote").fetchone()[0]
+    check("idempotent rebuild: fact_matter_action count stable", fma0 == fma1, f"{fma0}->{fma1}")
+    check("idempotent rebuild: fact_vote count stable", fv0 == fv1, f"{fv0}->{fv1}")
 
     con.close()
     print()

@@ -1,29 +1,32 @@
 """transform_gold.py — UNIFIED gold builder for both slices (integration branch).
 
-Supersedes the per-slice transform_star.py (legislation) and transform_meeting_star.py (meeting).
-Reads BOTH silver stagings and builds the full milestone-3 star schema (erd/schema.dbml), including
-the JOINT fact merge that the cross-slice contract describes.
+Supersedes the per-slice transforms. Reads BOTH silver stagings and builds the full milestone-3 star
+(erd/schema.dbml), including the JOINT fact merge. This is the LOCAL/DuckDB builder; the Databricks
+path consumes exported Parquet (see warehouse/export_parquet.py), it does not run this transform.
 
 Design:
-  * Self-contained: dims are seeded from SCRAPED data (no bodies.json / persons.json dependency).
-    dim_committee from scraped body names; dim_person from scraped names, using the meeting slice's
-    real PersonId where available (more robust than name-only).
-  * Full rebuild each run, child-first delete then parent-first insert — idempotent, and it satisfies
-    DuckDB's FK enforcement (which forbids deleting an FK-referenced parent). Re-run = recovery.
-  * The shared scrape/action_types.py is the SINGLE label->code / vote-normalization authority, so the
-    fact dedup keys are consistent across slices.
+  * Self-contained: dims seeded from SCRAPED data (no bodies.json/persons.json dependency).
+    dim_committee from scraped body names; dim_person from scraped names, preferring the meeting
+    slice's real PersonId. Committee names are matched through ONE canonicalizer (trim/case/'&'->'and')
+    so the two independently-scraped sources don't split into duplicate committees.
+  * Full rebuild each run, child-first delete then parent-first insert — idempotent (re-run = recovery)
+    and FK-safe under DuckDB (which forbids deleting an FK-referenced parent inside a transaction).
+  * scrape/action_types.py is the SINGLE label->code / vote normalization authority.
 
 Fact merge (meeting is system-of-record; legislation backfills):
-  * fact_matter_action natural key (matter_id, meeting_id, action_type_code); fact_vote (matter_id,
-    meeting_id, person_id). Meeting rows are written first (they carry a clean EventId -> meeting_sk);
-    legislation rows are added only where the meeting scrape didn't already cover them, with meeting_sk
-    resolved best-effort via (committee, action_date) -> dim_meeting.
+  * Distinct actions are PRESERVED: each agenda item (meeting) / history entry (legislation) is its own
+    row — dedup is per logical source row (QUALIFY on the natural row id), not by normalized code, so
+    two distinct labels that normalize to the same code (incl. OTHER) do not collapse.
+  * Cross-slice: a legislation action/vote is added only where the meeting scrape did NOT already record
+    one for the same (matter, meeting, code/person). meeting_sk is resolved via (committee, date) ->
+    dim_meeting; if a body meets twice on a date the match is AMBIGUOUS and left NULL (never guessed).
 
 Usage:
     python warehouse/transform_gold.py            # build gold from whatever staging is loaded
 """
 
 import argparse
+import re
 import sys
 from datetime import date, datetime, time
 from pathlib import Path
@@ -37,7 +40,22 @@ DDL_DIR = REPO_ROOT / "warehouse" / "ddl"
 
 from scrape.action_types import DIM_ACTION_TYPE_SEED, normalize_action, normalize_vote  # noqa: E402
 
-SYNTH_PERSON_BASE = 9_000_000   # synthetic person_ids for legislation-only names (no real PersonId)
+_WS = re.compile(r"\s+")
+# SQL canonical forms (DuckDB) — keep in lockstep with the Python _canon_* helpers below.
+_SQLC_COMMITTEE = r"regexp_replace(trim(lower(replace(committee_name,'&','and'))),'\s+',' ','g')"
+_SQLC_PERSON = r"lower(regexp_replace(trim(full_name),'\s+',' ','g'))"
+
+
+def _canon_committee(name):
+    if not name:
+        return None
+    return _WS.sub(" ", name.strip().lower().replace("&", "and"))
+
+
+def _canon_person(name):
+    if not name:
+        return None
+    return _WS.sub(" ", name.strip()).lower()
 
 
 def parse_date(s):
@@ -85,6 +103,50 @@ def clean_gold(con):
         con.execute(f"DELETE FROM {t}")
 
 
+# ── resolvers (canonical, cross-slice safe) ───────────────────────────────────
+def resolve_committee_sk(con, name):
+    c = _canon_committee(name)
+    if c is None:
+        return None
+    r = con.execute(f"SELECT committee_sk FROM dim_committee WHERE {_SQLC_COMMITTEE}=? LIMIT 1",
+                    [c]).fetchone()
+    return r[0] if r else None
+
+
+def resolve_person_sk(con, name):
+    c = _canon_person(name)
+    if c is None:
+        return None
+    r = con.execute(f"SELECT person_sk FROM dim_person WHERE {_SQLC_PERSON}=? AND is_current=true LIMIT 1",
+                    [c]).fetchone()
+    return r[0] if r else None
+
+
+def _msk_by_file(con, mfile):
+    if not mfile:
+        return None
+    r = con.execute("SELECT matter_sk FROM dim_matter WHERE matter_file=?", [mfile]).fetchone()
+    return r[0] if r else None
+
+
+def _msk_by_id(con, mid):
+    if mid is None:
+        return None
+    r = con.execute("SELECT matter_sk FROM dim_matter WHERE matter_id=?", [mid]).fetchone()
+    return r[0] if r else None
+
+
+def _meeting_sk(con, body_name, d):
+    """(committee, date) -> meeting_sk. Resolved via canonical committee_sk. Returns None if no match
+    OR if AMBIGUOUS (a body meeting twice on one date) — never guesses an arbitrary meeting."""
+    csk = resolve_committee_sk(con, body_name)
+    if csk is None or d is None:
+        return None
+    rows = con.execute("SELECT meeting_sk FROM dim_meeting WHERE committee_sk=? AND meeting_date=?",
+                       [csk, d]).fetchall()
+    return rows[0][0] if len(rows) == 1 else None
+
+
 # ── dimensions ────────────────────────────────────────────────────────────────
 def seed_action_types(con):
     for code, category, desc in DIM_ACTION_TYPE_SEED:
@@ -93,71 +155,85 @@ def seed_action_types(con):
 
 
 def seed_committees(con):
-    """Self-contained: union of every scraped body name (meeting calendar + legislation actions/control)."""
-    names = con.execute("""
+    """One row per CANONICAL body name (union of meeting calendar + legislation actions/control), so
+    '&'/'and' and whitespace/case variants across the two sources don't split into duplicates."""
+    names = [r[0] for r in con.execute("""
         SELECT DISTINCT body_name AS n FROM stg_meetings WHERE body_name IS NOT NULL
         UNION SELECT DISTINCT body FROM stg_actions WHERE body IS NOT NULL
         UNION SELECT DISTINCT in_control FROM stg_matters WHERE in_control IS NOT NULL
-    """).fetchall()
+    """).fetchall()]
+    seen = set()
     n = 0
-    for (name,) in names:
-        ctype = "Full Board" if name == "Board of Supervisors" else "Standing Committee"
+    for name in names:
+        c = _canon_committee(name)
+        if c in seen:
+            continue
+        seen.add(c)
+        ctype = "Full Board" if c == "board of supervisors" else "Standing Committee"
         con.execute("""INSERT INTO dim_committee (committee_sk, committee_id, committee_name,
                        committee_type, is_active) VALUES (nextval('seq_committee_sk'), NULL, ?, ?, true)""",
-                    [name, ctype])
+                    [name.strip(), ctype])
         n += 1
     print(f"  dim_committee      {n:>4}")
 
 
 def seed_persons(con):
-    """Self-contained: one current row per distinct name, preferring the meeting slice's real PersonId."""
-    id_by_name = {name: pid for name, pid in con.execute(
-        "SELECT DISTINCT person_name, person_id FROM stg_meeting_votes "
-        "WHERE person_name IS NOT NULL AND person_id IS NOT NULL").fetchall()}
+    """One row per CANONICAL name, preferring the meeting slice's real PersonId. Synthetic ids are
+    assigned strictly ABOVE any real id seen, so they can never collide with a real PersonId."""
+    id_by_canon = {}
+    for name, pid in con.execute("SELECT DISTINCT person_name, person_id FROM stg_meeting_votes "
+                                 "WHERE person_name IS NOT NULL AND person_id IS NOT NULL").fetchall():
+        id_by_canon.setdefault(_canon_person(name), pid)
     names = [r[0] for r in con.execute("""
         SELECT DISTINCT person_name AS n FROM stg_meeting_votes WHERE person_name IS NOT NULL
         UNION SELECT DISTINCT person_name FROM stg_votes WHERE person_name IS NOT NULL
         UNION SELECT DISTINCT sponsor_name FROM stg_sponsors WHERE sponsor_name IS NOT NULL
     """).fetchall()]
-    synth = SYNTH_PERSON_BASE
+    synth = max([*id_by_canon.values(), 999_999]) + 1   # strictly above every real PersonId
+    seen = set()
     real = n = 0
     for name in names:
-        pid = id_by_name.get(name)
+        c = _canon_person(name)
+        if c in seen:
+            continue
+        seen.add(c)
+        pid = id_by_canon.get(c)
         if pid is None:
-            synth += 1
             pid = synth
+            synth += 1
         else:
             real += 1
         con.execute("""INSERT INTO dim_person (person_sk, person_id, full_name, effective_from,
                        effective_to, is_current) VALUES (nextval('seq_person_sk'), ?, ?, '2020-01-01', NULL, true)""",
-                    [pid, name])
+                    [pid, name.strip()])
         n += 1
     print(f"  dim_person         {n:>4} ({real} with real PersonId from meeting scrape)")
 
 
 def build_matters(con):
     """dim_matter from legislation staging (flat, latest per matter), plus html_stub rows for matter
-    files a meeting agenda references but legislation hasn't scraped (prevents orphaned facts)."""
+    files a meeting agenda references but legislation hasn't scraped. Blank matter_file -> NULL so two
+    file-less matters don't collapse (keyed by matter_id instead)."""
     rows = con.execute("""
-        SELECT matter_id, matter_file, title, name, matter_type, introduced_raw, in_control, detail_url
+        SELECT matter_id, NULLIF(matter_file,'') AS mf, title, name, matter_type, introduced_raw,
+               in_control, detail_url
         FROM stg_matters
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_file ORDER BY ingest_date DESC, scraped_at DESC)=1
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(NULLIF(matter_file,''), 'mid:' || CAST(matter_id AS VARCHAR))
+            ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
     leg = stub = 0
     for (mid, mfile, title, name, mtype, intro, in_control, url) in rows:
-        committee = con.execute("SELECT committee_sk FROM dim_committee WHERE committee_name=?",
-                                [in_control]).fetchone()
         con.execute("""INSERT INTO dim_matter (matter_sk, matter_id, matter_file, matter_title,
             matter_name, matter_type, introduction_date, controlling_committee_sk, legistar_url,
             matter_source) VALUES (nextval('seq_matter_sk'),?,?,?,?,?,?,?,?, 'legislation')""",
             [mid, mfile, title, name, mtype, parse_date(intro),
-             committee[0] if committee else None, url])
+             resolve_committee_sk(con, in_control), url])
         leg += 1
-    # stubs from meeting agenda items
     stub_rows = con.execute("""
         SELECT matter_file, MAX(title) t, MAX(matter_name) n, MAX(matter_type) ty
         FROM stg_meeting_agenda_items
-        WHERE matter_file IS NOT NULL
+        WHERE matter_file IS NOT NULL AND matter_file <> ''
           AND matter_file NOT IN (SELECT matter_file FROM dim_matter WHERE matter_file IS NOT NULL)
         GROUP BY matter_file
     """).fetchall()
@@ -178,42 +254,42 @@ def build_meetings(con):
         QUALIFY ROW_NUMBER() OVER (PARTITION BY meeting_id ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
     for (mid, guid, body, d, t, loc, sub, ast, mst, aurl, murl, clip) in rows:
-        committee = con.execute("SELECT committee_sk FROM dim_committee WHERE committee_name=?",
-                                [body]).fetchone()
         con.execute("""INSERT INTO dim_meeting (meeting_sk, meeting_id, event_guid, committee_sk,
             meeting_date, meeting_time, location, meeting_subtype, agenda_status, minutes_status,
             agenda_url, minutes_url, video_clip_id)
             VALUES (nextval('seq_meeting_sk'),?,?,?,?,?,?,?,?,?,?,?,?)""",
-            [mid, guid, committee[0] if committee else None, parse_date(d), parse_time(t),
+            [mid, guid, resolve_committee_sk(con, body), parse_date(d), parse_time(t),
              loc, sub, ast, mst, aurl, murl, clip])
     print(f"  dim_meeting        {len(rows):>4}")
 
 
 def build_documents(con):
-    """matter attachments (legislation) + meeting docs (meeting), into dim_document + bridges."""
-    # matter attachments
+    """matter attachments (legislation) + meeting docs (meeting). Attachments with no document_id
+    still land (keyed by url), matching the ERD's nullable document_id."""
     att = con.execute("""
         SELECT matter_id, document_id, attachment_name, attachment_url
-        FROM stg_attachments WHERE document_id IS NOT NULL
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY ingest_date DESC, scraped_at DESC)=1
+        FROM stg_attachments WHERE attachment_url IS NOT NULL
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_id, attachment_url
+                                   ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
     n_doc = n_br = 0
     for (mid, did, name, url) in att:
         con.execute("""INSERT INTO dim_document (document_sk, document_id, document_source,
-            document_title, document_url, scraped_at) VALUES (nextval('seq_document_sk'), ?, 'matter_attachment', ?, ?, ?)""",
+            document_title, document_url, scraped_at)
+            VALUES (nextval('seq_document_sk'), ?, 'matter_attachment', ?, ?, ?)""",
             [did, name, url, datetime.now()])
         doc_sk = con.execute("SELECT currval('seq_document_sk')").fetchone()[0]
-        m = con.execute("SELECT matter_sk FROM dim_matter WHERE matter_id=?", [mid]).fetchone()
+        m = _msk_by_id(con, mid)
         if m and not con.execute("SELECT 1 FROM bridge_matter_document WHERE matter_sk=? AND document_sk=?",
-                                 [m[0], doc_sk]).fetchone():
-            con.execute("INSERT INTO bridge_matter_document VALUES (?,?)", [m[0], doc_sk])
+                                 [m, doc_sk]).fetchone():
+            con.execute("INSERT INTO bridge_matter_document VALUES (?,?)", [m, doc_sk])
             n_br += 1
         n_doc += 1
-    # meeting docs (one per meeting+source; latest URL wins)
     mdocs = con.execute("""
         SELECT meeting_id, document_source, document_title, document_url, body_text
         FROM stg_meeting_documents
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY meeting_id, document_source ORDER BY ingest_date DESC, scraped_at DESC)=1
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY meeting_id, document_source
+                                   ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
     for (mid, source, title, url, body) in mdocs:
         meeting = con.execute("SELECT meeting_sk FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
@@ -228,116 +304,82 @@ def build_documents(con):
         con.execute("INSERT INTO bridge_meeting_document VALUES (?,?)", [meeting[0], doc_sk])
         n_doc += 1
         n_br += 1
-    print(f"  dim_document       {n_doc:>4} | matter+meeting bridges {n_br}")
+    print(f"  dim_document       {n_doc:>4} | bridges {n_br}")
 
 
 def build_sponsors(con):
     rows = con.execute("""
         SELECT matter_id, sponsor_pos, sponsor_name FROM stg_sponsors
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_id, sponsor_pos
+                                   ORDER BY ingest_date DESC, scraped_at DESC)=1
         ORDER BY matter_id, sponsor_pos
     """).fetchall()
     n = 0
     for (mid, pos, name) in rows:
-        m = con.execute("SELECT matter_sk FROM dim_matter WHERE matter_id=?", [mid]).fetchone()
-        p = con.execute("SELECT person_sk FROM dim_person WHERE full_name=? AND is_current=true",
-                        [name]).fetchone()
+        m, p = _msk_by_id(con, mid), resolve_person_sk(con, name)
         if not m or not p:
             continue
         stype = "Primary" if pos == 0 else "Co"
         if not con.execute("""SELECT 1 FROM bridge_matter_sponsor
                               WHERE matter_sk=? AND person_sk=? AND sponsor_type=?""",
-                           [m[0], p[0], stype]).fetchone():
-            con.execute("INSERT INTO bridge_matter_sponsor VALUES (?,?,?)", [m[0], p[0], stype])
+                           [m, p, stype]).fetchone():
+            con.execute("INSERT INTO bridge_matter_sponsor VALUES (?,?,?)", [m, p, stype])
             n += 1
     print(f"  bridge_matter_sponsor {n:>2}")
 
 
 # ── facts (the joint merge) ───────────────────────────────────────────────────
-def _msk_by_file(con, mfile):
-    r = con.execute("SELECT matter_sk FROM dim_matter WHERE matter_file=?", [mfile]).fetchone()
-    return r[0] if r else None
-
-
-def _msk_by_id(con, mid):
-    r = con.execute("SELECT matter_sk FROM dim_matter WHERE matter_id=?", [mid]).fetchone()
-    return r[0] if r else None
-
-
-def _person_sk(con, name):
-    r = con.execute("SELECT person_sk FROM dim_person WHERE full_name=? AND is_current=true",
-                    [name]).fetchone()
-    return r[0] if r else None
-
-
-def _meeting_sk_by_committee_date(con, body_name, d):
-    """Best-effort meeting_sk for a legislation action: (committee, date) -> dim_meeting."""
-    if not body_name or d is None:
-        return None
-    r = con.execute("""SELECT m.meeting_sk FROM dim_meeting m JOIN dim_committee c
-                       ON c.committee_sk=m.committee_sk
-                       WHERE c.committee_name=? AND m.meeting_date=?""", [body_name, d]).fetchone()
-    return r[0] if r else None
-
-
 def build_facts(con):
     """Meeting-sourced facts first (authoritative, clean meeting_sk); then legislation backfill where
-    the meeting scrape didn't already cover the (matter, meeting, action/person) tuple."""
-    fma = fv = fma_leg = fv_leg = 0
+    the meeting scrape didn't already cover the (matter, meeting, code/person). Distinct source rows
+    are preserved (dedup is per logical row via QUALIFY, not by normalized code)."""
+    fma = fma_leg = fv = fv_leg = 0
 
-    # --- fact_matter_action: meeting-sourced ---
+    # fact_matter_action — meeting (one row per acted agenda item; distinct items preserved)
     items = con.execute("""
-        SELECT i.meeting_id, i.matter_file, i.action_raw, i.action_result, i.action_text,
-               m.meeting_date_raw, m.body_name
+        SELECT i.meeting_id, i.matter_file, i.action_raw, i.action_result, i.action_text
         FROM stg_meeting_agenda_items i
-        JOIN stg_meetings m ON m.meeting_id=i.meeting_id AND m.ingest_date=i.ingest_date
         WHERE i.action_raw IS NOT NULL
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY i.meeting_id, i.matter_file, i.action_raw
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY i.meeting_id, i.item_seq
                                    ORDER BY i.ingest_date DESC, i.scraped_at DESC)=1
     """).fetchall()
-    for (mid, mfile, action_raw, result, text, mdate, body) in items:
+    for (mid, mfile, action_raw, result, text) in items:
         msk = _msk_by_file(con, mfile)
-        meeting = con.execute("SELECT meeting_sk FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
+        meeting = con.execute("SELECT meeting_sk, meeting_date FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
         if not msk or not meeting:
-            continue
-        code = normalize_action(action_raw).code
-        if con.execute("""SELECT 1 FROM fact_matter_action WHERE matter_sk=? AND meeting_sk=? AND action_type_code=?""",
-                       [msk, meeting[0], code]).fetchone():
             continue
         con.execute("""INSERT INTO fact_matter_action (matter_action_sk, matter_sk, meeting_sk,
             action_type_code, action_result, action_date, action_text, source)
             VALUES (nextval('seq_matter_action_sk'),?,?,?,?,?,?, 'meeting')""",
-            [msk, meeting[0], code, result, parse_date(mdate), text])
+            [msk, meeting[0], normalize_action(action_raw).code, result, meeting[1], text])
         fma += 1
 
-    # --- fact_matter_action: legislation backfill ---
-    leg_actions = con.execute("""
-        SELECT a.matter_id, a.body, a.action, a.result, a.action_date_raw
-        FROM stg_actions a WHERE a.action IS NOT NULL AND a.action <> ''
+    # fact_matter_action — legislation backfill (latest scrape per history entry; skip if the meeting
+    # already recorded that code at that meeting)
+    leg = con.execute("""
+        SELECT matter_id, body, action, result, action_date_raw
+        FROM stg_actions WHERE action IS NOT NULL AND action <> ''
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_id, action_seq
+                                   ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
-    for (mid, body, action, result, adate_raw) in leg_actions:
+    for (mid, body, action, result, adate_raw) in leg:
         msk = _msk_by_id(con, mid)
         if not msk:
             continue
         code = normalize_action(action).code
         adate = parse_date(adate_raw)
-        meeting_sk = _meeting_sk_by_committee_date(con, body, adate)
-        # already covered by a meeting row?
-        if meeting_sk and con.execute("""SELECT 1 FROM fact_matter_action
+        meeting_sk = _meeting_sk(con, body, adate)
+        if meeting_sk is not None and con.execute("""SELECT 1 FROM fact_matter_action
                 WHERE matter_sk=? AND meeting_sk=? AND action_type_code=?""",
                 [msk, meeting_sk, code]).fetchone():
-            continue
-        # dedup legislation-only rows (NULL meeting) on (matter, code, date)
-        if meeting_sk is None and con.execute("""SELECT 1 FROM fact_matter_action
-                WHERE matter_sk=? AND meeting_sk IS NULL AND action_type_code=? AND action_date=?""",
-                [msk, code, adate]).fetchone():
-            continue
+            continue                                  # meeting is system-of-record for this tuple
         con.execute("""INSERT INTO fact_matter_action (matter_action_sk, matter_sk, meeting_sk,
             action_type_code, action_result, action_date, action_text, source)
             VALUES (nextval('seq_matter_action_sk'),?,?,?,?,?,?, 'legislation')""",
             [msk, meeting_sk, code, result or None, adate, action])
         fma_leg += 1
 
-    # --- fact_vote: meeting-sourced ---
+    # fact_vote — meeting (one row per matter+meeting+person, per the ERD grain)
     mvotes = con.execute("""
         SELECT v.meeting_id, v.person_name, v.vote_value_raw, i.matter_file, i.action_text, m.body_name
         FROM stg_meeting_votes v
@@ -348,41 +390,36 @@ def build_facts(con):
     """).fetchall()
     for (mid, person, vraw, mfile, motion, body) in mvotes:
         msk = _msk_by_file(con, mfile)
-        meeting = con.execute("SELECT meeting_sk FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
-        psk = _person_sk(con, person)
+        meeting = con.execute("SELECT meeting_sk, meeting_date FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
+        psk = resolve_person_sk(con, person)
         if not msk or not meeting or not psk:
             continue
-        scope = "board" if body == "Board of Supervisors" else "committee"
-        if con.execute("SELECT 1 FROM fact_vote WHERE matter_sk=? AND meeting_sk=? AND person_sk=?",
-                       [msk, meeting[0], psk]).fetchone():
-            continue
+        scope = "board" if _canon_committee(body) == "board of supervisors" else "committee"
         con.execute("""INSERT INTO fact_vote (vote_sk, matter_sk, meeting_sk, person_sk, body_scope,
             vote_date, vote_value, motion_text, source)
-            VALUES (nextval('seq_vote_sk'),?,?,?,?,(SELECT meeting_date FROM dim_meeting WHERE meeting_sk=?),?,?, 'meeting')""",
-            [msk, meeting[0], psk, scope, meeting[0], normalize_vote(vraw), motion])
+            VALUES (nextval('seq_vote_sk'),?,?,?,?,?,?,?, 'meeting')""",
+            [msk, meeting[0], psk, scope, meeting[1], normalize_vote(vraw), motion])
         fv += 1
 
-    # --- fact_vote: legislation backfill ---
+    # fact_vote — legislation backfill (skip if the meeting already recorded this person's vote)
     lvotes = con.execute("""
         SELECT v.matter_id, v.person_name, v.vote_value, a.body, a.action_date_raw
         FROM stg_votes v
         JOIN stg_actions a ON a.matter_id=v.matter_id AND a.action_seq=v.action_seq AND a.ingest_date=v.ingest_date
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY v.matter_id, a.action_seq, v.person_name
+                                   ORDER BY v.ingest_date DESC, v.scraped_at DESC)=1
     """).fetchall()
     for (mid, person, vraw, body, adate_raw) in lvotes:
-        msk = _msk_by_id(con, mid)
-        psk = _person_sk(con, person)
+        msk, psk = _msk_by_id(con, mid), resolve_person_sk(con, person)
         if not msk or not psk:
             continue
         adate = parse_date(adate_raw)
-        meeting_sk = _meeting_sk_by_committee_date(con, body, adate)
-        scope = "board" if body == "Board of Supervisors" else "committee"
-        if meeting_sk and con.execute("SELECT 1 FROM fact_vote WHERE matter_sk=? AND meeting_sk=? AND person_sk=?",
-                                      [msk, meeting_sk, psk]).fetchone():
+        meeting_sk = _meeting_sk(con, body, adate)
+        if meeting_sk is not None and con.execute(
+                "SELECT 1 FROM fact_vote WHERE matter_sk=? AND meeting_sk=? AND person_sk=?",
+                [msk, meeting_sk, psk]).fetchone():
             continue
-        if meeting_sk is None and con.execute("""SELECT 1 FROM fact_vote
-                WHERE matter_sk=? AND meeting_sk IS NULL AND person_sk=? AND vote_date=?""",
-                [msk, psk, adate]).fetchone():
-            continue
+        scope = "board" if _canon_committee(body) == "board of supervisors" else "committee"
         con.execute("""INSERT INTO fact_vote (vote_sk, matter_sk, meeting_sk, person_sk, body_scope,
             vote_date, vote_value, motion_text, source)
             VALUES (nextval('seq_vote_sk'),?,?,?,?,?,?,NULL, 'legislation')""",

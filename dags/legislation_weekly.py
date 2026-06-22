@@ -2,12 +2,12 @@
 
 Task chain (linear — each step must succeed before the next runs):
 
-  scrape_matters → load_staging → transform_star
+  scrape_matters → load_staging → build_gold
 
 scrape_matters:
   Enumerates matters created in the 7-day window ending on the DAG's
   logical date, then re-scrapes every matter currently marked in_works
-  (status changes won't appear in a created-date window). Writes one
+  (read from the latest legislation staging scrape). Writes one
   JSON file per matter to raw/matters/ingest_date=YYYY-MM-DD/.
 
 load_staging:
@@ -15,10 +15,12 @@ load_staging:
   deletes all rows for this ingest_date before inserting, so a retry
   after a partial failure starts clean rather than resuming mid-run.
 
-transform_star:
-  Upserts dims (SCD type 2 for dim_matter) and inserts facts.
-  meeting_sk is left NULL — the cross-slice meeting join runs separately
-  once the teammate's calendar data is loaded.
+build_gold:
+  Runs warehouse/transform_gold.py — a full, idempotent rebuild of the
+  unified star (flat dim_matter, status derived from facts) with the joint
+  fact merge. NOTE: this DAG feeds only the legislation staging today; once
+  the meeting scrape is added as an upstream task its staging flows into the
+  same build automatically (no DAG change needed).
 
 Schedule: Monday 06:00 UTC. SF Board meets Tuesdays, so Monday catches
 the prior week's introduced matters before the next meeting cycle.
@@ -75,13 +77,15 @@ def scrape_matters(**context) -> None:
     week_start   = ingest_date - timedelta(days=6)
 
     # 1. URLs for matters currently in_works — re-scrape so status changes surface.
+    # dim_matter is flat on the integration branch (status derived from facts), so 'in_works' is
+    # read from the latest legislation staging scrape, which still carries the lifecycle bucket.
     con = duckdb.connect(str(DB_PATH))
     open_urls = {
         row[0] for row in con.execute("""
-            SELECT legistar_url FROM dim_matter
-            WHERE lifecycle = 'in_works'
-              AND is_current = true
-              AND legistar_url IS NOT NULL
+            SELECT detail_url FROM stg_matters
+            WHERE lifecycle = 'in_works' AND detail_url IS NOT NULL
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_id
+                                       ORDER BY ingest_date DESC, scraped_at DESC) = 1
         """).fetchall()
     }
     con.close()
@@ -138,7 +142,7 @@ def load_staging(**context) -> None:
     con.close()
 
 
-def transform_star(**context) -> None:
+def build_gold(**context) -> None:
     """Build the unified gold star from whatever staging is loaded (integration branch).
 
     Uses warehouse/transform_gold.py, which fully rebuilds gold from both slices' staging and is
@@ -190,16 +194,16 @@ with DAG(
         """,
     )
 
-    t_transform = PythonOperator(
-        task_id="transform_star",
-        python_callable=transform_star,
+    t_build = PythonOperator(
+        task_id="build_gold",
+        python_callable=build_gold,
         doc_md="""
-        **transform_star** — upsert dims (SCD type 2) and insert facts.
-        meeting_sk left NULL pending the teammate's calendar data.
+        **build_gold** — full idempotent rebuild of the unified star via transform_gold
+        (flat dim_matter; joint fact merge; meeting_sk resolved from the meeting slice).
         """,
     )
 
     # Linear chain: downstream tasks are blocked until upstream succeeds.
-    # If load_staging fails, transform_star enters upstream_failed and does
+    # If load_staging fails, build_gold enters upstream_failed and does
     # not run on partial staging data.
-    t_scrape >> t_load >> t_transform
+    t_scrape >> t_load >> t_build

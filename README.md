@@ -28,8 +28,7 @@ gold builder and joint fact merge — see [`docs/integration.md`](docs/integrati
   ```bash
   pip install -r requirements.txt
   python -m scrape.legistar_meetings --current-month --raw-dir raw/meetings
-  python warehouse/load_meeting_staging.py --src raw/meetings/ingest_date=$(date +%F)
-  python warehouse/transform_meeting_star.py
+  python warehouse/run_local.py --meeting-raw raw/meetings/ingest_date=$(date +%F) --date $(date +%F)
   python warehouse/smoke_test_meetings.py   # offline end-to-end check
   ```
 - **scrape-by-legislation** — legislation search → `LegislationDetail.aspx`. Builds `dim_matter`,

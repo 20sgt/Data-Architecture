@@ -58,7 +58,7 @@ Table dim_committee {
 
 Table dim_matter {
   matter_sk int [pk]
-  matter_id int [not null, note: 'Legistar MatterId']
+  matter_id int [note: 'Legistar MatterId; NULL for html_stub matters (referenced by a meeting agenda but not yet scraped by the legislation slice)']
   matter_file text [note: 'File number, e.g. 240123 — the ONLY join key from a meeting agenda row']
   matter_title text
   matter_name text
