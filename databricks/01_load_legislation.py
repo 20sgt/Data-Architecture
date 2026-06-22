@@ -5,23 +5,24 @@
 # Prerequisites:
 #   Upload Parquet files from warehouse/exports/ to a Unity Catalog Volume:
 #
-#   Option A — Databricks UI (no CLI needed):
-#     Catalog (left sidebar) > main > Create Schema "legislation"
+# Produce the Parquet first with:  python warehouse/export_parquet.py
+#
+#   Option A — Databricks UI (no CLI needed): in the CATALOG set below
+#     Catalog (left sidebar) > <CATALOG> > Create Schema "legislation"
 #     > Volumes tab > Create Volume "parquet"
 #     > Upload to Volume > drag warehouse/exports/*.parquet
 #
 #   Option B — Databricks CLI:
 #     pip install databricks-cli
 #     databricks configure --token   # host = your workspace URL, token = PAT from Settings
-#     databricks fs cp warehouse/exports/ /Volumes/main/legislation/parquet/ --recursive
+#     databricks fs cp warehouse/exports/ /Volumes/<CATALOG>/legislation/parquet/ --recursive
 #
-# Produce the Parquet first with:  python warehouse/export_parquet.py
-# After running, query with:
-#   SELECT * FROM main.legislation.dim_matter LIMIT 20   (dim_matter is flat; status lives in facts)
+# After running, query with (dim_matter is flat; status lives in facts):
+#   SELECT * FROM <CATALOG>.legislation.dim_matter LIMIT 20
 
 # COMMAND ----------
 
-# Adjust if your catalog or schema name differs
+# One catalog used consistently for the volume path AND table creation. Adjust to your workspace.
 CATALOG    = "workspace"
 SCHEMA     = "legislation"
 VOLUME     = "parquet"
@@ -38,10 +39,10 @@ TABLES = [
 
 # COMMAND ----------
 
-# Create the database (idempotent)
-spark.sql("CREATE DATABASE IF NOT EXISTS legislation")
-spark.sql("USE legislation")
-print("Using database: legislation")
+# Create the schema in the chosen catalog (idempotent)
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
+spark.sql(f"USE {CATALOG}.{SCHEMA}")
+print(f"Using schema: {CATALOG}.{SCHEMA}")
 
 # COMMAND ----------
 
@@ -53,13 +54,13 @@ for table in TABLES:
        .format("delta")
        .mode("overwrite")
        .option("overwriteSchema", "true")
-       .saveAsTable(table))
+       .saveAsTable(f"{CATALOG}.{SCHEMA}.{table}"))
     print(f"  {table:<30} {df.count():>5} rows")
 
 # COMMAND ----------
 
-# Verify: list all tables in the legislation database
-spark.sql("SHOW TABLES IN legislation").show()
+# Verify: list all tables in the schema
+spark.sql(f"SHOW TABLES IN {CATALOG}.{SCHEMA}").show()
 
 # COMMAND ----------
 

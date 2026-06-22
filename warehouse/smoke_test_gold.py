@@ -29,6 +29,7 @@ REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 import warehouse.transform_gold as gold  # noqa: E402
+from warehouse.transform_gold import _canon_committee  # noqa: E402
 from warehouse.load_meeting_staging import load_partition as load_meetings  # noqa: E402
 from warehouse.load_staging import load_partition as load_matters  # noqa: E402
 from warehouse.smoke_test_meetings import assemble_committee_meeting, write_partition  # noqa: E402
@@ -56,10 +57,14 @@ LEG_MATTER = {
     "attachments": [{"name": "Leg Ver1",
                      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=55501&GUID=ABC"}],
     "actions": [
-        # overlaps the meeting — body uses the "&" variant to prove canonical committee matching
-        {"date": "6/15/2026", "body": "Land Use & Transportation Committee",
+        # overlaps the meeting — body uses NBSP + "&" variant to prove canonical committee matching
+        {"date": "6/15/2026", "body": "Land Use & Transportation Committee",
          "action": "RECOMMENDED", "result": "Pass", "history_url": "h1",
          "votes": [{"person": "Myrna Melgar", "value": "Aye"}]},
+        # SAME (matter, meeting) as the meeting's RECOMMENDED but a DIFFERENT normalized code —
+        # source-based suppression must drop it (no double-count under two codes)
+        {"date": "6/15/2026", "body": "Land Use & Transportation Committee",
+         "action": "APPROVED", "result": "Pass", "history_url": "h1b", "votes": []},
         {"date": "5/1/2026", "body": "Board of Supervisors",
          "action": "REFERRED", "result": "", "history_url": "h2", "votes": []},     # legislation-only
         # two DISTINCT labels that both normalize to OTHER — must NOT collapse into one row
@@ -73,6 +78,15 @@ LEG_MATTER = {
 
 
 def main():
+    # Inject a non-breaking space into the overlapping action bodies (chr(160), to avoid a literal
+    # NBSP in source) — exercises the canonicalizer end-to-end on the regression input.
+    nbsp_body = "Land Use" + chr(160) + "& Transportation Committee"
+    LEG_MATTER["actions"][0]["body"] = nbsp_body
+    LEG_MATTER["actions"][1]["body"] = nbsp_body
+    check("_canon_committee collapses NBSP + '&'",
+          _canon_committee(nbsp_body) == "land use and transportation committee",
+          _canon_committee(nbsp_body))
+
     con = duckdb.connect()
     gold.ensure_schema(con)
 
@@ -124,6 +138,18 @@ def main():
         WHERE m.matter_file='260422' AND fa.action_type_code='OTHER'
     """).fetchone()[0]
     check("two distinct OTHER actions preserved (not collapsed)", n_other == 2, str(n_other))
+
+    # NBSP + '&' committee variants across slices collapse to ONE committee (pass-2 regression)
+    n_comm = con.execute("SELECT COUNT(*) FROM dim_committee").fetchone()[0]
+    check("committee name variants (NBSP/&) collapse to 1 Land Use + 1 Board", n_comm == 2, str(n_comm))
+
+    # different-code legislation action at a meeting-recorded (matter,meeting) is suppressed
+    # source-based, not double-counted under a second code (pass-2 finding #1)
+    n_appr = con.execute("""
+        SELECT COUNT(*) FROM fact_matter_action fa JOIN dim_matter m ON m.matter_sk=fa.matter_sk
+        WHERE m.matter_file='260422' AND fa.action_type_code='APPROVED'
+    """).fetchone()[0]
+    check("divergent-code legislation action suppressed (meeting is system-of-record)", n_appr == 0, str(n_appr))
 
     # fact_vote dedup: Melgar on 260422 appears once (the overlapping legislation vote is dropped)
     mv = con.execute("""

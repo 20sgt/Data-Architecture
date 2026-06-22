@@ -40,6 +40,8 @@ def main() -> None:
     ap.add_argument("--db", default=str(DB_PATH), help=f"DuckDB file (default: {DB_PATH})")
     ap.add_argument("--out", default=str(EXPORT_DIR), help=f"export dir (default: {EXPORT_DIR})")
     args = ap.parse_args()
+    if not Path(args.db).exists():
+        ap.error(f"{args.db} not found — run warehouse/run_local.py first to build the gold star")
     con = duckdb.connect(args.db, read_only=True)
     try:
         print(f"Exporting gold -> {args.out}")
