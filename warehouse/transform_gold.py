@@ -138,13 +138,27 @@ def _msk_by_id(con, mid):
 
 def _meeting_sk(con, ccache, body_name, d):
     """(committee, date) -> meeting_sk. Resolved via canonical committee_sk. Returns None if no match
-    OR if AMBIGUOUS (a body meeting twice on one date) — never guesses an arbitrary meeting."""
+    OR if AMBIGUOUS (a body meeting twice on one date) — never guesses an arbitrary meeting.
+    Used only to STAMP meeting_sk on legislation rows; cross-slice dedup uses history_id (below)."""
     csk = resolve_committee_sk(ccache, body_name)
     if csk is None or d is None:
         return None
     rows = con.execute("SELECT meeting_sk FROM dim_meeting WHERE committee_sk=? AND meeting_date=?",
                        [csk, d]).fetchall()
     return rows[0][0] if len(rows) == 1 else None
+
+
+_ID_RE = re.compile(r"[?&]ID=(\d+)", re.I)
+
+
+def _hist_id(url):
+    """MatterHistory id from a HistoryDetail URL — the EXACT cross-slice key for a physical action.
+    Both slices reach the same HistoryDetail page, so the same action/roll-call shares this id
+    regardless of how each slice labels/dates/attributes it."""
+    if not url:
+        return None
+    m = _ID_RE.search(url)
+    return int(m.group(1)) if m else None
 
 
 # ── dimensions ────────────────────────────────────────────────────────────────
@@ -269,17 +283,17 @@ def build_documents(con):
     """matter attachments (legislation) + meeting docs (meeting). Attachments with no document_id
     still land (keyed by url), matching the ERD's nullable document_id."""
     att = con.execute("""
-        SELECT matter_id, document_id, attachment_name, attachment_url
+        SELECT matter_id, document_id, attachment_name, attachment_url, scraped_at
         FROM stg_attachments WHERE attachment_url IS NOT NULL
         QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_id, attachment_url
                                    ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
     n_doc = n_br = 0
-    for (mid, did, name, url) in att:
+    for (mid, did, name, url, scraped_at) in att:
         con.execute("""INSERT INTO dim_document (document_sk, document_id, document_source,
             document_title, document_url, scraped_at)
             VALUES (nextval('seq_document_sk'), ?, 'matter_attachment', ?, ?, ?)""",
-            [did, name, url, datetime.now()])
+            [did, name, url, scraped_at])
         doc_sk = con.execute("SELECT currval('seq_document_sk')").fetchone()[0]
         m = _msk_by_id(con, mid)
         if m and not con.execute("SELECT 1 FROM bridge_matter_document WHERE matter_sk=? AND document_sk=?",
@@ -288,12 +302,12 @@ def build_documents(con):
             n_br += 1
         n_doc += 1
     mdocs = con.execute("""
-        SELECT meeting_id, document_source, document_title, document_url, body_text
+        SELECT meeting_id, document_source, document_title, document_url, body_text, scraped_at
         FROM stg_meeting_documents
         QUALIFY ROW_NUMBER() OVER (PARTITION BY meeting_id, document_source
                                    ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
-    for (mid, source, title, url, body) in mdocs:
+    for (mid, source, title, url, body, scraped_at) in mdocs:
         meeting = con.execute("SELECT meeting_sk FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
         if not meeting:
             continue
@@ -301,7 +315,7 @@ def build_documents(con):
         con.execute("""INSERT INTO dim_document (document_sk, document_id, document_source,
             document_title, document_url, document_type, body_text, scraped_at)
             VALUES (nextval('seq_document_sk'), NULL, ?, ?, ?, ?, ?, ?)""",
-            [source, title, url, dtype, body, datetime.now()])
+            [source, title, url, dtype, body, scraped_at])
         doc_sk = con.execute("SELECT currval('seq_document_sk')").fetchone()[0]
         con.execute("INSERT INTO bridge_meeting_document VALUES (?,?)", [meeting[0], doc_sk])
         n_doc += 1
@@ -333,20 +347,27 @@ def build_sponsors(con, pcache):
 # ── facts (the joint merge) ───────────────────────────────────────────────────
 def build_facts(con, ccache, pcache):
     """Meeting-sourced facts first (authoritative, clean meeting_sk); then legislation backfill.
-    Distinct source rows are preserved (dedup is per logical row via QUALIFY). Cross-slice suppression
-    is SOURCE-BASED (meeting is system-of-record for any (matter, meeting) it recorded), so the same
-    physical event is never double-counted even when the two slices normalize its label differently."""
+
+    Cross-slice dedup is keyed EXACTLY on the MatterHistory id (history_id): both slices reach the same
+    HistoryDetail page, so one physical action/roll-call shares that id regardless of how each slice
+    labels/dates/attributes it. This both (a) dedups the same event even when the slices normalize its
+    label to different codes, and (b) preserves genuinely distinct events (different history entries,
+    different committees on the same day, extra voters the meeting roll-call missed). For the rare row
+    that carries no history id, fall back to a meeting-resolved, code/person-aware suppression (never a
+    cross-committee date guess)."""
     fma = fma_leg = fv = fv_leg = 0
+    meeting_action_hids = set()                  # history_ids the meeting slice recorded
+    meeting_vote_keys = set()                    # (history_id, canon person) the meeting recorded
 
     # fact_matter_action — meeting (one row per acted agenda item; distinct items preserved)
     items = con.execute("""
-        SELECT i.meeting_id, i.matter_file, i.action_raw, i.action_result, i.action_text
+        SELECT i.meeting_id, i.matter_file, i.action_raw, i.action_result, i.action_text, i.history_id
         FROM stg_meeting_agenda_items i
         WHERE i.action_raw IS NOT NULL
         QUALIFY ROW_NUMBER() OVER (PARTITION BY i.meeting_id, i.item_seq
                                    ORDER BY i.ingest_date DESC, i.scraped_at DESC)=1
     """).fetchall()
-    for (mid, mfile, action_raw, result, text) in items:
+    for (mid, mfile, action_raw, result, text, hid) in items:
         msk = _msk_by_file(con, mfile)
         meeting = con.execute("SELECT meeting_sk, meeting_date FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
         if not msk or not meeting:
@@ -355,48 +376,49 @@ def build_facts(con, ccache, pcache):
             action_type_code, action_result, action_date, action_text, source)
             VALUES (nextval('seq_matter_action_sk'),?,?,?,?,?,?, 'meeting')""",
             [msk, meeting[0], normalize_action(action_raw).code, result, meeting[1], text])
+        if hid is not None:
+            meeting_action_hids.add(hid)
         fma += 1
 
-    # fact_matter_action — legislation backfill. Suppress (source-based, code-independent) when the
-    # meeting slice already recorded this (matter, meeting); if meeting_sk is unresolved, suppress
-    # when the meeting recorded the same (matter, date).
+    # fact_matter_action — legislation backfill (skip exact history-id dups; else code-aware fallback)
     leg = con.execute("""
-        SELECT matter_id, body, action, result, action_date_raw
+        SELECT matter_id, body, action, result, action_date_raw, history_url
         FROM stg_actions WHERE action IS NOT NULL AND action <> ''
         QUALIFY ROW_NUMBER() OVER (PARTITION BY matter_id, action_seq
                                    ORDER BY ingest_date DESC, scraped_at DESC)=1
     """).fetchall()
-    for (mid, body, action, result, adate_raw) in leg:
+    for (mid, body, action, result, adate_raw, hurl) in leg:
         msk = _msk_by_id(con, mid)
         if not msk:
             continue
+        code = normalize_action(action).code
         adate = parse_date(adate_raw)
+        hid = _hist_id(hurl)
         meeting_sk = _meeting_sk(con, ccache, body, adate)
-        if meeting_sk is not None:
-            if con.execute("""SELECT 1 FROM fact_matter_action
-                    WHERE matter_sk=? AND meeting_sk=? AND source='meeting'""",
-                    [msk, meeting_sk]).fetchone():
-                continue
-        elif adate is not None and con.execute("""SELECT 1 FROM fact_matter_action
-                WHERE matter_sk=? AND action_date=? AND source='meeting'""",
-                [msk, adate]).fetchone():
-            continue
+        if hid is not None:
+            if hid in meeting_action_hids:
+                continue                          # exact cross-slice duplicate (same history entry)
+        elif meeting_sk is not None and con.execute("""SELECT 1 FROM fact_matter_action
+                WHERE matter_sk=? AND meeting_sk=? AND action_type_code=? AND source='meeting'""",
+                [msk, meeting_sk, code]).fetchone():
+            continue                              # no history id: meeting-resolved, code-aware fallback
         con.execute("""INSERT INTO fact_matter_action (matter_action_sk, matter_sk, meeting_sk,
             action_type_code, action_result, action_date, action_text, source)
             VALUES (nextval('seq_matter_action_sk'),?,?,?,?,?,?, 'legislation')""",
-            [msk, meeting_sk, normalize_action(action).code, result or None, adate, action])
+            [msk, meeting_sk, code, result or None, adate, action])
         fma_leg += 1
 
     # fact_vote — meeting (one row per matter+meeting+person, per the ERD grain)
     mvotes = con.execute("""
-        SELECT v.meeting_id, v.person_name, v.vote_value_raw, i.matter_file, i.action_text, m.body_name
+        SELECT v.meeting_id, v.person_name, v.vote_value_raw, i.matter_file, i.action_text,
+               m.body_name, i.history_id
         FROM stg_meeting_votes v
         JOIN stg_meeting_agenda_items i ON i.meeting_id=v.meeting_id AND i.item_seq=v.item_seq AND i.ingest_date=v.ingest_date
         JOIN stg_meetings m ON m.meeting_id=v.meeting_id AND m.ingest_date=v.ingest_date
         QUALIFY ROW_NUMBER() OVER (PARTITION BY v.meeting_id, i.matter_file, v.person_name
                                    ORDER BY v.ingest_date DESC, v.scraped_at DESC)=1
     """).fetchall()
-    for (mid, person, vraw, mfile, motion, body) in mvotes:
+    for (mid, person, vraw, mfile, motion, body, hid) in mvotes:
         msk = _msk_by_file(con, mfile)
         meeting = con.execute("SELECT meeting_sk, meeting_date FROM dim_meeting WHERE meeting_id=?", [mid]).fetchone()
         psk = resolve_person_sk(pcache, person)
@@ -407,31 +429,32 @@ def build_facts(con, ccache, pcache):
             vote_date, vote_value, motion_text, source)
             VALUES (nextval('seq_vote_sk'),?,?,?,?,?,?,?, 'meeting')""",
             [msk, meeting[0], psk, scope, meeting[1], normalize_vote(vraw), motion])
+        if hid is not None:
+            meeting_vote_keys.add((hid, _canon_person(person)))
         fv += 1
 
-    # fact_vote — legislation backfill (source-based suppression, mirroring fact_matter_action)
+    # fact_vote — legislation backfill (skip exact (history-id, person) dups; else person-aware fallback)
     lvotes = con.execute("""
-        SELECT v.matter_id, v.person_name, v.vote_value, a.body, a.action_date_raw
+        SELECT v.matter_id, v.person_name, v.vote_value, a.body, a.action_date_raw, a.history_url
         FROM stg_votes v
         JOIN stg_actions a ON a.matter_id=v.matter_id AND a.action_seq=v.action_seq AND a.ingest_date=v.ingest_date
         QUALIFY ROW_NUMBER() OVER (PARTITION BY v.matter_id, a.action_seq, v.person_name
                                    ORDER BY v.ingest_date DESC, v.scraped_at DESC)=1
     """).fetchall()
-    for (mid, person, vraw, body, adate_raw) in lvotes:
+    for (mid, person, vraw, body, adate_raw, hurl) in lvotes:
         msk, psk = _msk_by_id(con, mid), resolve_person_sk(pcache, person)
         if not msk or not psk:
             continue
         adate = parse_date(adate_raw)
+        hid = _hist_id(hurl)
         meeting_sk = _meeting_sk(con, ccache, body, adate)
-        if meeting_sk is not None:
-            if con.execute("""SELECT 1 FROM fact_vote
-                    WHERE matter_sk=? AND meeting_sk=? AND source='meeting'""",
-                    [msk, meeting_sk]).fetchone():
-                continue
-        elif adate is not None and con.execute("""SELECT 1 FROM fact_vote
-                WHERE matter_sk=? AND person_sk=? AND vote_date=? AND source='meeting'""",
-                [msk, psk, adate]).fetchone():
-            continue
+        if hid is not None:
+            if (hid, _canon_person(person)) in meeting_vote_keys:
+                continue                          # exact cross-slice duplicate (same roll-call + person)
+        elif meeting_sk is not None and con.execute("""SELECT 1 FROM fact_vote
+                WHERE matter_sk=? AND meeting_sk=? AND person_sk=? AND source='meeting'""",
+                [msk, meeting_sk, psk]).fetchone():
+            continue                              # no history id: meeting-resolved, person-aware fallback
         scope = "board" if _canon_committee(body) == "board of supervisors" else "committee"
         con.execute("""INSERT INTO fact_vote (vote_sk, matter_sk, meeting_sk, person_sk, body_scope,
             vote_date, vote_value, motion_text, source)

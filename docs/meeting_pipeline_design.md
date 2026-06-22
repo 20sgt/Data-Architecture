@@ -60,9 +60,9 @@ legistar_meetings.py ──► raw/meetings/ingest_date=YYYY-MM-DD/<EventId>.jso
         ▼  load_meeting_staging.py (idempotent per ingest_date: delete-then-insert)
 stg_meetings · stg_meeting_agenda_items · stg_meeting_votes · stg_meeting_documents   [SILVER]
         │
-        ▼  transform_meeting_star.py (full refresh of the meeting-owned subgraph)
+        ▼  transform_gold.py (unified full refresh; see docs/integration.md)
 dim_meeting · dim_action_type · dim_document(meeting) · bridge_meeting_document       [GOLD ✓ built]
-fact_matter_action · fact_vote                                                        [GOLD ⏸ merge]
+fact_matter_action · fact_vote                                                        [GOLD ✓ built (joint merge)]
 ```
 
 This increment ("**silver + my uncontested gold**") builds everything except the two shared fact
@@ -107,9 +107,14 @@ Both slices surface the **same** `HistoryDetail` roll-call, so the canonical fac
   name-matching the legislation slice currently uses; recommend the merge key on `person_id`.
 
 ### Merge prerequisites — the legislation slice must adopt these before the joint merge
+> **✅ Resolved on the `integration` branch.** The unified `warehouse/transform_gold.py` supersedes the
+> legislation slice's `transform_star.py` entirely and handles all three below: it normalizes both
+> slices through `scrape/action_types.py`, dedups cross-slice on the shared **`history_id`** (so the
+> ERD-natural-key concern is moot), and builds against the single milestone-3 `02_star.sql`. The list
+> is kept as a record of the original divergences. See [`integration.md`](integration.md).
+
 An adversarial review (2026-06-21) confirmed the sibling branch `feature/legislation-schema-design`
-currently **violates** the contract above; these must be resolved or the merge silently duplicates /
-corrupts facts:
+**violated** the contract above; on its own these would make the merge silently duplicate / corrupt facts:
 1. **Normalize via the shared module.** `transform_star.py` writes the *raw* label into
    `action_type_code` (e.g. `PASSED, ON FIRST READING`) and never calls `action_types.py`. It must call
    `normalize_action(raw).code` (and `normalize_vote(raw)` for `No`→`Nay`) — otherwise the meeting row
@@ -150,9 +155,9 @@ python -m scrape.legistar_meetings --event 1422963 --guid 0C4442D2-D43D-4908-B17
 # scrape the current month's completed meetings -> bronze
 python -m scrape.legistar_meetings --current-month --raw-dir raw/meetings --date 2026-06-21
 
-# bronze -> silver -> gold
+# bronze -> silver -> gold (unified builder; see docs/integration.md)
 python warehouse/load_meeting_staging.py --src raw/meetings/ingest_date=2026-06-21 --date 2026-06-21
-python warehouse/transform_meeting_star.py
+python warehouse/transform_gold.py
 
 # offline end-to-end check (no network)
 python warehouse/smoke_test_meetings.py
