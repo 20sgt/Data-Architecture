@@ -17,7 +17,9 @@ Documentation/Slides links are not accessible publicly. Must be logged in with a
 ## Pipelines
 
 Medallion ELT (bronze raw scrape → silver staging → gold star schema), split into two scrape efforts
-that share the gold layer:
+that share the gold layer. On the `integration` branch both run into **one** warehouse with a unified
+gold builder and joint fact merge — see [`docs/integration.md`](docs/integration.md) (one-command run:
+`python warehouse/run_local.py`).
 
 - **scrape-by-meeting** — `Calendar.aspx → MeetingDetail.aspx → HistoryDetail.aspx`. Builds
   `dim_meeting`, meeting documents, and (at the cross-slice merge) the per-meeting facts. See

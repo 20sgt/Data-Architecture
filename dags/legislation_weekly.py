@@ -139,39 +139,19 @@ def load_staging(**context) -> None:
 
 
 def transform_star(**context) -> None:
-    """Transform staging into the star schema for this date's partition.
+    """Build the unified gold star from whatever staging is loaded (integration branch).
 
-    Clears the pipeline_runs record before running so that Airflow retries
-    (which only reach here after load_staging has fully succeeded) start
-    clean rather than being blocked by a prior partial run.
+    Uses warehouse/transform_gold.py, which fully rebuilds gold from both slices' staging and is
+    idempotent — so Airflow retries are safe with no pipeline_runs guard needed.
+    NOTE: this DAG currently only feeds the legislation staging; once the meeting scrape is added as
+    an upstream task its staging will flow into the same build automatically.
     """
     _add_repo_to_path()
     import duckdb
-    from warehouse.transform_star import (
-        ensure_sequences, seed_committees, seed_persons,
-        transform_matters, transform_actions, transform_votes,
-        transform_documents, transform_sponsors,
-    )
-
-    ds          = context["ds"]
-    ingest_date = date.fromisoformat(ds)
+    from warehouse.transform_gold import build
 
     con = duckdb.connect(str(DB_PATH))
-    ensure_sequences(con)
-
-    # Clear any prior run record so a retry after load_staging succeeds
-    # doesn't get blocked by the pipeline_runs guard in transform_star.main().
-    con.execute("DELETE FROM pipeline_runs WHERE ingest_date = ?", [ingest_date])
-
-    seed_committees(con)
-    seed_persons(con)
-    transform_matters(con, ingest_date)
-    transform_actions(con, ingest_date)
-    transform_votes(con, ingest_date)
-    transform_documents(con, ingest_date)
-    transform_sponsors(con, ingest_date)
-
-    con.execute("INSERT INTO pipeline_runs VALUES (?, ?)", [ingest_date, datetime.now()])
+    build(con)
     con.close()
 
 

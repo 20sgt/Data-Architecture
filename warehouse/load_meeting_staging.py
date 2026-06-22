@@ -34,9 +34,9 @@ def _int(x):
 
 
 def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
-    """Create the meeting staging + star tables if absent. Safe on every run."""
+    """Create the meeting staging + shared gold tables if absent. Safe on every run."""
     con.execute((DDL_DIR / "03_meeting_staging.sql").read_text())
-    con.execute((DDL_DIR / "04_meeting_star.sql").read_text())
+    con.execute((DDL_DIR / "02_star.sql").read_text())
 
 
 def delete_partition(con: duckdb.DuckDBPyConnection, ingest_date: date) -> None:

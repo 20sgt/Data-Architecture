@@ -1,13 +1,15 @@
-"""smoke_test_meetings.py — offline end-to-end check for the scrape-by-meeting slice.
+"""smoke_test_meetings.py — offline check for the meeting slice (parsers + meeting-only gold).
 
-No network: parses the committed HTML fixtures with the real scraper parsers, then runs
-the full bronze JSON -> staging -> gold path in an in-memory DuckDB and asserts the result.
+No network: parses the committed HTML fixtures with the real scraper parsers, then runs the
+bronze JSON -> meeting staging -> unified gold (transform_gold) path on meeting-only data in an
+in-memory DuckDB. The cross-slice fact merge is covered separately by smoke_test_gold.py.
 
 Covers:
-  A. Parsers vs fixtures (calendar, Final meeting, Draft-gating, roll-calls).
-  B. action_types contract (the comma variant collapses to one code).
-  C. Load + transform -> dim_meeting / dim_committee / dim_action_type / dim_document / bridge.
-  D. Re-scrape upsert (Draft -> Final updates dim_meeting in place; still one row).
+  A. Parsers vs fixtures (calendar, Final meeting, Draft-gating, roll-calls, novel-literal capture).
+  B. action_types contract (comma variant, AS-AMENDED ordering, normalize_vote).
+  C. Load + build -> dim_meeting / dim_committee / dim_action_type / dim_document / bridge.
+  D. Re-scrape (Draft -> Final): latest ingest wins, still one row.
+  E. Doc dedup survives a changed agenda URL.
 
 Run:  python warehouse/smoke_test_meetings.py
 """
@@ -28,10 +30,8 @@ from scrape.action_types import normalize_action, normalize_vote  # noqa: E402
 from scrape.legistar_meetings import (  # noqa: E402
     Meeting, parse_calendar, parse_meeting_detail, parse_history, _build_documents,
 )
-from warehouse.load_meeting_staging import ensure_schema, load_partition  # noqa: E402
-from warehouse.transform_meeting_star import (  # noqa: E402
-    ensure_sequences, seed_action_types, seed_committees_provisional, rebuild_meeting_gold,
-)
+from warehouse.load_meeting_staging import load_partition  # noqa: E402
+import warehouse.transform_gold as gold  # noqa: E402
 
 FIX = REPO_ROOT / "scrape" / "fixtures"
 _failures: list[str] = []
@@ -131,15 +131,12 @@ def main() -> None:
 
     print("── C. load + transform -> gold ──")
     con = duckdb.connect()
-    ensure_schema(con)
-    ensure_sequences(con)
+    gold.ensure_schema(con)
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "meetings"
         part = write_partition([assemble_committee_meeting()], root, "2026-06-21")
         load_partition(con, part, date(2026, 6, 21))
-    seed_action_types(con)
-    seed_committees_provisional(con)
-    rebuild_meeting_gold(con)
+    gold.build(con)
 
     n_meet = con.execute("SELECT COUNT(*) FROM dim_meeting").fetchone()[0]
     check("dim_meeting has 1 row", n_meet == 1, str(n_meet))
@@ -173,7 +170,7 @@ def main() -> None:
         # load the older Draft first (earlier ingest_date), then re-run transform
         part = write_partition([draft], root, "2026-06-10")
         load_partition(con, part, date(2026, 6, 10))
-    rebuild_meeting_gold(con)
+    gold.build(con)
     n_meet2 = con.execute("SELECT COUNT(*) FROM dim_meeting").fetchone()[0]
     latest = con.execute("SELECT minutes_status FROM dim_meeting WHERE meeting_id=1422963").fetchone()[0]
     check("still one dim_meeting row after re-load", n_meet2 == 1, str(n_meet2))
@@ -188,7 +185,7 @@ def main() -> None:
         root = Path(tmp) / "meetings"
         part = write_partition([moved], root, "2026-06-28")
         load_partition(con, part, date(2026, 6, 28))
-    rebuild_meeting_gold(con)
+    gold.build(con)
     n_agenda = con.execute(
         "SELECT COUNT(*) FROM dim_document WHERE document_source='meeting_agenda'").fetchone()[0]
     check("exactly one meeting_agenda doc after URL change", n_agenda == 1, str(n_agenda))

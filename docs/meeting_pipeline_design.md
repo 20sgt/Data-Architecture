@@ -8,6 +8,13 @@ cross-slice merge — `fact_matter_action` / `fact_vote`). The legislation half 
 Companion to the gold schema in [`../erd/schema.dbml`](../erd/schema.dbml) /
 [`../erd/ERD.md`](../erd/ERD.md) and the open decisions in [`../DISCUSSION.md`](../DISCUSSION.md).
 
+> **On the `integration` branch this is superseded for the gold layer.** The deferred joint fact
+> merge and the "merge prerequisites" in §5 are now BUILT in the unified
+> [`../warehouse/transform_gold.py`](../warehouse/transform_gold.py) against the shared
+> [`../warehouse/ddl/02_star.sql`](../warehouse/ddl/02_star.sql). See
+> [`integration.md`](integration.md). This doc still describes the meeting slice's bronze→silver and
+> the contract rationale.
+
 ---
 
 ## 1. Why scrape by meeting at all

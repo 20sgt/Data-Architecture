@@ -1,37 +1,29 @@
--- 02_star.sql — Gold layer: star schema (group ERD + proposed additions)
+-- 02_star.sql — SHARED gold star schema (milestone-3 ERD, single source of truth).
 --
--- OWNERSHIP:
---   Lynn's slice:   dim_committee, dim_person, dim_matter, dim_document, dim_subject,
---                   fact_vote, fact_matter_action, bridge_matter_sponsor,
---                   bridge_matter_document, bridge_matter_subject
---   Teammate's:     dim_meeting, fact_committee_membership (stubs at bottom of file)
+-- This is the ONE gold DDL both slices target (reconciled on the `integration` branch). It matches
+-- erd/schema.dbml exactly; the per-slice silver staging stays separate (01_staging.sql for the
+-- legislation slice, 03_meeting_staging.sql for the meeting slice). The unified builder
+-- warehouse/transform_gold.py populates everything here from both stagings.
 --
--- Surrogate keys (*_sk) are assigned by the transform layer using ROW_NUMBER() —
--- not auto-increment columns — so they remain stable across DuckDB and Databricks.
+-- Reconciliation notes vs the old per-slice DDLs:
+--   * dim_matter is FLAT (per the ERD: "No current_status column — derive from latest
+--     fact_matter_action"). The legislation slice's earlier SCD2/status columns are dropped.
+--   * dim_document gains document_source + nullable document_id (meeting docs have no attachment id).
+--   * dim_committee.committee_id is nullable + UNIQUE(committee_name) — seeded self-contained from
+--     scraped body names (real BodyIds can be layered in later).
+--   * dim_action_type lookup added; fact_vote gains body_scope; fact_matter_action gains action_result.
 --
--- Run 01_staging.sql first, then this file.
+-- Surrogate keys (*_sk) are assigned by the transform via DuckDB sequences. FK REFERENCES are kept
+-- for documentation/correctness; the transform rebuilds gold child-first so DuckDB's FK enforcement
+-- is satisfied (Databricks/Delta treats FKs as informational). Compatible with DuckDB + Databricks SQL.
+-- Hard CHECKs on free-text vote/action values are kept as comments (not enforced) so unconfirmed
+-- live literals never abort a load. Run after 01_staging.sql / 03_meeting_staging.sql.
 
--- ── dim_committee ─────────────────────────────────────────────────────────────
--- Seeded from spike/data/bodies.json (authoritative Legistar BodyId → BodyName).
--- Stable reference data; does not need SCD versioning.
--- Owned by the legislation slice; the meeting slice resolves committee_sk from this dim.
-CREATE TABLE IF NOT EXISTS dim_committee (
-    committee_sk    INTEGER PRIMARY KEY,
-    committee_id    INTEGER NOT NULL,  -- BodyId from bodies.json
-    committee_name  TEXT    NOT NULL,
-    committee_type  TEXT,              -- BodyTypeName (e.g. "Standing Committee")
-    is_active       BOOLEAN,
-    UNIQUE (committee_id)
-);
-
--- ── dim_person ────────────────────────────────────────────────────────────────
--- Supervisors and any other named persons (committee members, staff).
--- Seeded from spike/data/persons.json; vote names conformed against full_name.
--- SCD type 2: a new row is inserted when a supervisor changes district or term.
--- Queries for current members: WHERE is_current = true.
+-- ════════════════════════════════════════════════════════════════════════════ Dimensions
+-- ── dim_person ── SCD2: one row per person-version (key person_id across versions).
 CREATE TABLE IF NOT EXISTS dim_person (
     person_sk             INTEGER PRIMARY KEY,
-    person_id             INTEGER NOT NULL,  -- PersonId from persons.json
+    person_id             BIGINT,             -- Legistar PersonId (real from meeting scrape; synthetic for legislation-only names)
     full_name             TEXT    NOT NULL,
     district              INTEGER,
     party                 TEXT,
@@ -40,156 +32,140 @@ CREATE TABLE IF NOT EXISTS dim_person (
     supervisor_term_start DATE,
     supervisor_term_end   DATE,
     effective_from        DATE    NOT NULL,
-    effective_to          DATE,             -- NULL = currently open
+    effective_to          DATE,               -- NULL = current
     is_current            BOOLEAN NOT NULL
 );
 
--- ── dim_matter ────────────────────────────────────────────────────────────────
--- One row per version of a matter (SCD type 2 on status fields).
--- When status changes (e.g. in_works → passed), the old row is closed:
---   effective_to = change date, is_current = false.
--- A new row is inserted with the updated status and is_current = true.
--- Queries for current state: WHERE is_current = true.
--- Queries for history: join on matter_id (natural key) across all versions.
---
--- NOTE: columns marked "PROPOSED ADDITION" are not in the group ERD as of 2026-06-11.
---       Please review before the group finalises the schema.
+-- ── dim_committee ── flat; seeded self-contained from scraped body names (committee_id nullable).
+CREATE TABLE IF NOT EXISTS dim_committee (
+    committee_sk   INTEGER PRIMARY KEY,
+    committee_id   BIGINT,                    -- Legistar BodyId; NULL until a bodies.json seed is layered in
+    committee_name TEXT    NOT NULL,
+    committee_type TEXT,                      -- Full Board | Standing Committee | Special
+    is_active      BOOLEAN,
+    UNIQUE (committee_name)
+);
+
+-- ── dim_matter ── FLAT (one row per matter); status derived from facts, not stored here.
 CREATE TABLE IF NOT EXISTS dim_matter (
     matter_sk                INTEGER PRIMARY KEY,
-    matter_id                INTEGER NOT NULL,  -- natural key: Legistar ID from URL
-    matter_file              TEXT,              -- human-facing file number ("260439")
-    matter_title             TEXT,              -- full abstract paragraph
-    matter_name              TEXT,              -- short subject line
+    matter_id                BIGINT,           -- Legistar MatterId (URL id); NULL for html_stub matters
+    matter_file              TEXT,             -- file number, e.g. "260439" — the join key from a meeting agenda row
+    matter_title             TEXT,
+    matter_name              TEXT,
     matter_type              TEXT,
     introduction_date        DATE,
     controlling_committee_sk INTEGER REFERENCES dim_committee(committee_sk),
     requester                TEXT,
     legistar_url             TEXT,
-    -- PROPOSED ADDITIONS (status lifecycle) ──────────────────────────────────
-    status                   TEXT,             -- raw Legistar status string
-    lifecycle                TEXT,             -- passed | in_works | other
-    final_action_date        DATE,
-    enactment_date           DATE,
-    enactment_number         TEXT,
-    -- SCD type 2 versioning (same pattern as dim_person) ────────────────────
-    effective_from           DATE    NOT NULL,
-    effective_to             DATE,             -- NULL = currently open
-    is_current               BOOLEAN NOT NULL
+    matter_source            TEXT,             -- legislation | html_stub (stub = referenced by a meeting but not yet scraped)
+    UNIQUE (matter_file)
 );
 
--- ── dim_document ──────────────────────────────────────────────────────────────
--- Attachments from the Legistar document store (Leg Ver PDFs, committee packets, etc.).
--- document_id from the ID= param of the View.ashx URL.
-CREATE TABLE IF NOT EXISTS dim_document (
-    document_sk    INTEGER PRIMARY KEY,
-    document_id    INTEGER NOT NULL,
-    document_title TEXT,
-    document_url   TEXT,
-    document_type  TEXT,
-    body_text      TEXT,       -- populated only when --full-text was used
-    scraped_at     TIMESTAMP,
-    UNIQUE (document_id)
-);
-
--- ── dim_subject ───────────────────────────────────────────────────────────────
--- Subject/topic tags for matters.
--- DATA SOURCE: open — no Legistar field maps directly to subjects.
--- Proposed: derive from matter_name/matter_title keywords or LLM tagging (later increment).
+-- ── dim_subject ── (no per-matter source found yet; table kept, currently unpopulated).
 CREATE TABLE IF NOT EXISTS dim_subject (
     subject_sk   INTEGER PRIMARY KEY,
-    subject_id   INTEGER NOT NULL,
+    subject_id   BIGINT  NOT NULL,
     subject_name TEXT    NOT NULL,
     UNIQUE (subject_id)
 );
 
--- ════════════════════════════════════════════════════════════════════════════
--- TEAMMATE'S TABLES (stubs — owned by the meeting slice)
--- Defined here so fact table FK references resolve in a single-database setup.
--- Do not populate from the legislation pipeline.
--- ════════════════════════════════════════════════════════════════════════════
+-- ── dim_document ── matter attachments (legislation) AND meeting docs (meeting); source disambiguates.
+CREATE TABLE IF NOT EXISTS dim_document (
+    document_sk     INTEGER PRIMARY KEY,
+    document_id     BIGINT,                   -- MatterAttachmentId; NULL for meeting docs
+    document_source TEXT    NOT NULL,         -- matter_attachment | meeting_agenda | meeting_minutes | transcript
+    document_title  TEXT,
+    document_url    TEXT,
+    document_type   TEXT,
+    body_text       TEXT,                     -- extracted text; NULL unless --with-text
+    scraped_at      TIMESTAMP
+);
 
+-- ── dim_meeting ── flat; owned by the meeting slice. event_guid mandatory for refetch.
 CREATE TABLE IF NOT EXISTS dim_meeting (
-    meeting_sk    INTEGER PRIMARY KEY,
-    meeting_id    INTEGER NOT NULL,
-    committee_sk  INTEGER REFERENCES dim_committee(committee_sk),
-    meeting_date  DATE,
-    meeting_time  TIME,
-    location      TEXT,
-    agenda_url    TEXT,
-    minutes_url   TEXT,
+    meeting_sk      INTEGER PRIMARY KEY,
+    meeting_id      BIGINT  NOT NULL,         -- Legistar EventId
+    event_guid      TEXT    NOT NULL,
+    committee_sk    INTEGER REFERENCES dim_committee(committee_sk),
+    meeting_date    DATE,
+    meeting_time    TIME,
+    location        TEXT,
+    meeting_subtype TEXT,
+    agenda_status   TEXT,
+    minutes_status  TEXT,
+    agenda_url      TEXT,
+    minutes_url     TEXT,
+    video_clip_id   TEXT,
     UNIQUE (meeting_id)
 );
 
--- ════════════════════════════════════════════════════════════════════════════
--- FACT TABLES
--- ════════════════════════════════════════════════════════════════════════════
+-- ── dim_action_type ── lookup; seeded from scrape/action_types.py (the shared label->code map).
+CREATE TABLE IF NOT EXISTS dim_action_type (
+    action_type_code TEXT PRIMARY KEY,
+    action_category  TEXT,                    -- introduction | referral | committee | board | amendment | disposition | other
+    description      TEXT
+);
 
--- ── fact_matter_action ────────────────────────────────────────────────────────
--- One row per legislative action (committee hearing, board vote, referral, etc.)
--- meeting_sk is NULLABLE: resolved via (committee_sk, action_date) lookup against
--- dim_meeting when the meeting slice has run; NULL otherwise.
--- PROPOSED ADDITION: action_result (not in group ERD).
+-- ════════════════════════════════════════════════════════════════════════════ Facts
+-- ── fact_matter_action ── grain: (matter, meeting, action). Natural key: (matter_id, meeting_id, action_type_code).
 CREATE TABLE IF NOT EXISTS fact_matter_action (
     matter_action_sk INTEGER PRIMARY KEY,
-    matter_sk        INTEGER NOT NULL REFERENCES dim_matter(matter_sk),
-    meeting_sk       INTEGER REFERENCES dim_meeting(meeting_sk),  -- nullable, cross-slice
-    action_type_code TEXT    NOT NULL,   -- e.g. "RECOMMENDED", "PASSED ON FIRST READING"
+    matter_sk        INTEGER REFERENCES dim_matter(matter_sk),
+    meeting_sk       INTEGER REFERENCES dim_meeting(meeting_sk),   -- nullable: legislation rows unmatched to a meeting
+    action_type_code TEXT    NOT NULL REFERENCES dim_action_type(action_type_code),
+    action_result    TEXT,                    -- CHECK: Pass | Fail | NULL (not enforced)
     action_date      DATE,
-    action_text      TEXT,
-    action_result    TEXT               -- PROPOSED ADDITION: "Pass" | "Fail"
+    action_text      TEXT,                    -- raw label / full motion text (traceability to bronze)
+    source           TEXT                     -- meeting | legislation (which crawl wrote the surviving row)
 );
 
--- ── fact_vote ─────────────────────────────────────────────────────────────────
--- One row per per-member vote per action.
--- Grain: (matter_sk, action in fact_matter_action, person_sk).
--- meeting_sk nullable for the same reason as fact_matter_action.
+-- ── fact_vote ── grain: (matter, meeting, person). Natural key: (matter_id, meeting_id, person_id).
 CREATE TABLE IF NOT EXISTS fact_vote (
     vote_sk     INTEGER PRIMARY KEY,
-    matter_sk   INTEGER NOT NULL REFERENCES dim_matter(matter_sk),
-    meeting_sk  INTEGER REFERENCES dim_meeting(meeting_sk),  -- nullable, cross-slice
-    person_sk   INTEGER NOT NULL REFERENCES dim_person(person_sk),
+    matter_sk   INTEGER REFERENCES dim_matter(matter_sk),
+    meeting_sk  INTEGER REFERENCES dim_meeting(meeting_sk),        -- nullable
+    person_sk   INTEGER REFERENCES dim_person(person_sk),
+    body_scope  TEXT    NOT NULL,             -- board | committee
     vote_date   DATE,
-    vote_value  TEXT NOT NULL,  -- Aye | No | Absent | Excused | Recused
-    motion_text TEXT
+    vote_value  TEXT    NOT NULL,             -- canonical: Aye | Nay | Excused | Absent (+ Recused/Present passthrough)
+    motion_text TEXT,
+    source      TEXT
 );
 
--- ── fact_committee_membership ─────────────────────────────────────────────────
--- TEAMMATE'S TABLE (stub). SCD type 2 on membership.
+-- ── fact_committee_membership ── SCD2-shaped tenure (no live source yet; table kept).
 CREATE TABLE IF NOT EXISTS fact_committee_membership (
     membership_sk  INTEGER PRIMARY KEY,
     person_sk      INTEGER REFERENCES dim_person(person_sk),
     committee_sk   INTEGER REFERENCES dim_committee(committee_sk),
-    position       TEXT    NOT NULL,
+    position       TEXT    NOT NULL,          -- Chair | Vice Chair | Member
     effective_from DATE    NOT NULL,
     effective_to   DATE,
     is_current     BOOLEAN
 );
 
--- ════════════════════════════════════════════════════════════════════════════
--- BRIDGE TABLES
--- ════════════════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════════════════════ Bridges (M:M)
+CREATE TABLE IF NOT EXISTS bridge_matter_subject (
+    matter_sk  INTEGER NOT NULL REFERENCES dim_matter(matter_sk),
+    subject_sk INTEGER NOT NULL REFERENCES dim_subject(subject_sk),
+    PRIMARY KEY (matter_sk, subject_sk)
+);
 
--- ── bridge_matter_sponsor ────────────────────────────────────────────────────
--- Links matters to their sponsoring supervisors.
--- sponsor_type convention (Legistar doesn't distinguish natively):
---   sponsor_pos 0 → 'primary', pos > 0 → 'co'
 CREATE TABLE IF NOT EXISTS bridge_matter_sponsor (
     matter_sk    INTEGER NOT NULL REFERENCES dim_matter(matter_sk),
     person_sk    INTEGER NOT NULL REFERENCES dim_person(person_sk),
-    sponsor_type TEXT    NOT NULL,  -- 'primary' | 'co'
-    PRIMARY KEY (matter_sk, person_sk)
+    sponsor_type TEXT    NOT NULL,            -- Primary | Co
+    PRIMARY KEY (matter_sk, person_sk, sponsor_type)
 );
 
--- ── bridge_matter_document ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS bridge_matter_document (
     matter_sk   INTEGER NOT NULL REFERENCES dim_matter(matter_sk),
     document_sk INTEGER NOT NULL REFERENCES dim_document(document_sk),
     PRIMARY KEY (matter_sk, document_sk)
 );
 
--- ── bridge_matter_subject ─────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS bridge_matter_subject (
-    matter_sk  INTEGER NOT NULL REFERENCES dim_matter(matter_sk),
-    subject_sk INTEGER NOT NULL REFERENCES dim_subject(subject_sk),
-    PRIMARY KEY (matter_sk, subject_sk)
+CREATE TABLE IF NOT EXISTS bridge_meeting_document (
+    meeting_sk  INTEGER NOT NULL REFERENCES dim_meeting(meeting_sk),
+    document_sk INTEGER NOT NULL REFERENCES dim_document(document_sk),
+    PRIMARY KEY (meeting_sk, document_sk)
 );
