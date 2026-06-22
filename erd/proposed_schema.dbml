@@ -1,0 +1,213 @@
+// SF Legislation Analytics — Gold Layer Schema, AS BUILT (DBML)
+// PROPOSED / as-implemented snapshot derived from warehouse/ddl/02_star.sql on the `integration`
+// branch (generated 2026-06-22). schema.dbml remains the canonical conceptual model; this file
+// documents what the unified builder (warehouse/transform_gold.py) actually creates, so the two can
+// be reconciled before merging to main.
+//
+// DELTAS vs schema.dbml (the canonical ERD):
+//   + lineage columns NOT in the ERD: dim_matter.matter_source, fact_matter_action.source, fact_vote.source
+//   ~ natural-key ids widened int -> bigint (the *_sk surrogates stay int)
+//   ~ dim_committee.committee_id and dim_person.person_id nullable here (ERD: not null);
+//     committee_id is name-seeded with NULL until a bodies.json seed is layered in
+//   + UNIQUE(committee_name) on dim_committee; UNIQUE(matter_file) on dim_matter
+//   ~ CHECKs (action_result, body_scope, vote_value, sponsor_type, position) are NOT enforced — kept
+//     as comments so unconfirmed live literals never abort a load; vote_value also passes through
+//     Recused/Present beyond the ERD's {Aye,Nay,Excused,Absent}
+//   ~ dim_document.scraped_at is timestamp (not timestamptz) for DuckDB/Databricks portability
+//   = dim_matter is FLAT (status derived from facts) — same as the ERD (the legislation slice's old
+//     SCD2 dim_matter was dropped to match the ERD, not a delta)
+
+Project sf_legislation_analytics_as_built {
+  database_type: 'PostgreSQL'
+  Note: '''
+    AS-BUILT gold layer (matches warehouse/ddl/02_star.sql). Built by warehouse/transform_gold.py from
+    both slices' silver staging. Surrogate keys (_sk) and dim_person SCD2 are gold-only. FK REFERENCES
+    are declared for documentation; the transform rebuilds gold child-first so DuckDB FK enforcement is
+    satisfied (Databricks treats FKs as informational). See docs/integration.md.
+  '''
+}
+
+// ============================================================
+// Dimensions
+// ============================================================
+
+Table dim_person {
+  person_sk int [pk, note: 'Surrogate — regenerated per SCD2 version']
+  person_id bigint [note: 'Legistar PersonId (real from meeting roll-call; synthetic > max real id for legislation-only names). ERD: not null']
+  full_name text [not null]
+  district int [note: '1-11; NULL for non-Supervisors']
+  party text
+  gender text
+  birth_date date
+  supervisor_term_start date
+  supervisor_term_end date
+  effective_from date [not null]
+  effective_to date [note: 'NULL if current']
+  is_current boolean [not null]
+
+  Note: 'SCD2 — one row per person-version. Seeded self-contained from scraped names.'
+}
+
+Table dim_committee {
+  committee_sk int [pk]
+  committee_id bigint [note: 'Legistar BodyId; NULL until a bodies.json seed is layered in. ERD: not null']
+  committee_name text [not null, unique, note: 'Canonical-deduped across both slices; UNIQUE (not in ERD)']
+  committee_type text [note: 'Full Board / Standing Committee / Special']
+  is_active boolean
+
+  Note: 'Bodies. Seeded self-contained from scraped body names (canonicalized: case / & vs and / whitespace).'
+}
+
+Table dim_matter {
+  matter_sk int [pk]
+  matter_id bigint [note: 'Legistar MatterId; NULL for html_stub matters']
+  matter_file text [unique, note: 'File number — join key from a meeting agenda row; UNIQUE (not in ERD)']
+  matter_title text
+  matter_name text
+  matter_type text
+  introduction_date date
+  controlling_committee_sk int [ref: > dim_committee.committee_sk]
+  requester text
+  legistar_url text
+  matter_source text [note: 'NOT IN ERD: legislation | html_stub (stub = referenced by a meeting but not yet scraped by the legislation slice)']
+
+  Note: 'Flat (status derived from latest fact_matter_action). One row per legislative item.'
+}
+
+Table dim_subject {
+  subject_sk int [pk]
+  subject_id bigint [not null, unique]
+  subject_name text [not null]
+
+  Note: 'Legistar subject index. Currently UNPOPULATED (no per-matter source found).'
+}
+
+Table dim_document {
+  document_sk int [pk]
+  document_id bigint [note: 'Legistar MatterAttachmentId; NULL for meeting docs']
+  document_source text [not null, note: 'matter_attachment | meeting_agenda | meeting_minutes | transcript (CHECK not enforced)']
+  document_title text
+  document_url text
+  document_type text
+  body_text text [note: 'Extracted content; NULL unless --with-text']
+  scraped_at timestamp [note: 'Carried from staging lineage; ERD: timestamptz']
+
+  Note: 'Matter attachments AND meeting docs; document_source disambiguates.'
+}
+
+Table dim_meeting {
+  meeting_sk int [pk]
+  meeting_id bigint [not null, unique, note: 'Legistar EventId']
+  event_guid text [not null, note: 'Legistar EventGUID — mandatory for every fetch (ID alone -> HTTP 410)']
+  committee_sk int [ref: > dim_committee.committee_sk]
+  meeting_date date
+  meeting_time time
+  location text
+  meeting_subtype text [note: 'Regular / Recessed / Special / ...']
+  agenda_status text [note: 'Final / Draft']
+  minutes_status text [note: 'Final / Final Draft / Draft / NULL']
+  agenda_url text
+  minutes_url text
+  video_clip_id text [note: 'Granicus clip id (ID1=) — link to video/audio/transcript']
+
+  Note: 'Meetings — committee + full Board. Owned by scrape-by-meeting.'
+}
+
+// ============================================================
+// Lookups
+// ============================================================
+
+Table dim_action_type {
+  action_type_code text [pk, note: 'Source of truth = scrape/action_types.py DIM_ACTION_TYPE_SEED: INTRODUCED, REFERRED, RECOMMENDED, PASSED_COMMITTEE, CONTINUED, PASSED_BOARD_1ST_READING, PASSED_BOARD_2ND_READING, ADOPTED, APPROVED, AMENDED, WITHDRAWN, TABLED, FILED, OTHER']
+  action_category text [note: 'introduction / referral / committee / board / amendment / disposition / other']
+  description text
+
+  Note: 'Lookup. BOTH slices map raw labels to these codes via the one shared module.'
+}
+
+// ============================================================
+// Facts
+// ============================================================
+
+Table fact_matter_action {
+  matter_action_sk int [pk]
+  matter_sk int [ref: > dim_matter.matter_sk]
+  meeting_sk int [ref: > dim_meeting.meeting_sk, note: 'Nullable; NULL when a legislation action did not resolve to a scraped meeting']
+  action_type_code text [not null, ref: > dim_action_type.action_type_code]
+  action_result text [note: 'Pass / Fail / NULL (CHECK not enforced)']
+  action_date date
+  action_text text [note: 'Raw label / full motion text']
+  source text [note: 'NOT IN ERD: meeting | legislation (which crawl wrote the surviving row)']
+
+  Note: '''
+    Grain: one row per (matter, meeting, action). Cross-slice dedup is keyed on history_id
+    (MatterHistory id shared by both slices), not on action_type_code.
+  '''
+}
+
+Table fact_vote {
+  vote_sk int [pk]
+  matter_sk int [ref: > dim_matter.matter_sk]
+  meeting_sk int [ref: > dim_meeting.meeting_sk, note: 'Nullable (cross-slice)']
+  person_sk int [ref: > dim_person.person_sk]
+  body_scope text [not null, note: 'board | committee (CHECK not enforced)']
+  vote_date date
+  vote_value text [not null, note: 'Aye | Nay | Excused | Absent (+ Recused/Present passthrough); CHECK not enforced']
+  motion_text text
+  source text [note: 'NOT IN ERD: meeting | legislation']
+
+  Note: '''
+    Per-person roll-call, Board AND committee. Grain: one row per (matter, meeting, person).
+    Cross-slice dedup keyed on (history_id, person).
+  '''
+}
+
+Table fact_committee_membership {
+  membership_sk int [pk]
+  person_sk int [ref: > dim_person.person_sk]
+  committee_sk int [ref: > dim_committee.committee_sk]
+  position text [not null, note: 'Chair / Vice Chair / Member (CHECK not enforced)']
+  effective_from date [not null]
+  effective_to date
+  is_current boolean
+
+  Note: 'SCD2-shaped tenure. Currently UNPOPULATED (no OfficeRecords source wired).'
+}
+
+// ============================================================
+// Bridges (many-to-many)
+// ============================================================
+
+Table bridge_matter_subject {
+  matter_sk int [ref: > dim_matter.matter_sk]
+  subject_sk int [ref: > dim_subject.subject_sk]
+  Indexes {
+    (matter_sk, subject_sk) [pk]
+  }
+  Note: 'Currently unpopulated (no subject source).'
+}
+
+Table bridge_matter_sponsor {
+  matter_sk int [ref: > dim_matter.matter_sk]
+  person_sk int [ref: > dim_person.person_sk]
+  sponsor_type text [not null, note: 'Primary | Co (CHECK not enforced)']
+  Indexes {
+    (matter_sk, person_sk, sponsor_type) [pk]
+  }
+}
+
+Table bridge_matter_document {
+  matter_sk int [ref: > dim_matter.matter_sk]
+  document_sk int [ref: > dim_document.document_sk]
+  Indexes {
+    (matter_sk, document_sk) [pk]
+  }
+}
+
+Table bridge_meeting_document {
+  meeting_sk int [ref: > dim_meeting.meeting_sk]
+  document_sk int [ref: > dim_document.document_sk]
+  Indexes {
+    (meeting_sk, document_sk) [pk]
+  }
+}
