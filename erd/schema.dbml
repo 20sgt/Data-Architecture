@@ -1,0 +1,240 @@
+// SF Legislation Analytics — Gold Layer Schema (DBML)
+// WORKING SOURCE OF TRUTH. Paste into https://dbdiagram.io/d to render the ERD,
+// or sync the dbdocs project (https://dbdocs.io/jacksoncdawson/Group-Project-ERD).
+// Companion docs: ERD.md (this directory) and ../DISCUSSION.md (open decisions).
+// Milestone-2 snapshot archived at schema_milestone2.dbml.
+//
+// CHANGELOG vs milestone 2:
+//   + dim_meeting.event_guid (mandatory for refetch), video_clip_id, meeting_subtype, agenda_status, minutes_status
+//   + fact_matter_action.action_result; action_type_code now references dim_action_type lookup (was inline CHECK)
+//   + fact_vote.body_scope (capture committee per-person votes too, not Board-only)
+//   + dim_action_type lookup; bridge_meeting_document; dim_document.document_source (+ document_id now nullable)
+
+Project sf_legislation_analytics {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Final analytics (gold) layer for SF Board of Supervisors legislative data.
+    Data flow: bronze (raw HTML scrape of SF Legistar) -> silver (clean / conform /
+    dedup on SOURCE natural keys) -> gold (this star schema).
+    Surrogate keys (_sk) and SCD2 are GOLD-ONLY; scrapers never write surrogates.
+    The Legistar Web API is unusable for SF (frozen ~2018-2020 + corrupted), so all
+    current data is HTML-scraped. See ../DISCUSSION.md.
+  '''
+}
+
+// ============================================================
+// Dimensions
+// ============================================================
+
+Table dim_person {
+  person_sk int [pk, note: 'Surrogate — regenerated per SCD2 version']
+  person_id int [not null, note: 'Legistar PersonId — shared across versions']
+  full_name text [not null]
+  district int [note: '1-11; NULL for non-Supervisors']
+  party text [note: 'From biographical scrape; nullable']
+  gender text [note: 'From biographical scrape; nullable']
+  birth_date date [note: 'From biographical scrape; age derived at query time']
+  supervisor_term_start date
+  supervisor_term_end date [note: 'NULL if currently serving']
+  effective_from date [not null]
+  effective_to date [note: 'NULL if current']
+  is_current boolean [not null]
+
+  Note: '''
+    SCD2 — one row per person-version.
+    Multiple rows per real person when tracked attributes change.
+  '''
+}
+
+Table dim_committee {
+  committee_sk int [pk]
+  committee_id int [not null, note: 'Legistar BodyId']
+  committee_name text [not null]
+  committee_type text [note: 'Full Board / Standing Committee / Special']
+  is_active boolean
+
+  Note: 'Bodies — committees and the full Board. Flat dimension.'
+}
+
+Table dim_matter {
+  matter_sk int [pk]
+  matter_id int [not null, note: 'Legistar MatterId']
+  matter_file text [note: 'File number, e.g. 240123 — the ONLY join key from a meeting agenda row']
+  matter_title text
+  matter_name text
+  matter_type text [note: 'Ordinance / Resolution / Charter Amendment / Hearing / Mayoral Appointment']
+  introduction_date date
+  controlling_committee_sk int [ref: > dim_committee.committee_sk]
+  requester text
+  legistar_url text
+
+  Note: '''
+    One row per legislative item.
+    No current_status column — derive from latest fact_matter_action.
+    Owned by scrape-by-legislation; meeting scrape joins on matter_file.
+  '''
+}
+
+Table dim_subject {
+  subject_sk int [pk]
+  subject_id int [not null, note: 'Legistar IndexId']
+  subject_name text [not null, note: 'Housing, Transportation, Public Safety, etc.']
+
+  Note: 'Legistar subject index — joined to matters via bridge_matter_subject.'
+}
+
+Table dim_document {
+  document_sk int [pk]
+  document_id int [note: 'Legistar MatterAttachmentId; NULL for meeting docs (agenda/minutes/transcript have none)']
+  document_source text [not null, note: 'CHECK: matter_attachment, meeting_agenda, meeting_minutes, transcript']
+  document_title text
+  document_url text
+  document_type text [note: 'Bill Text / Amendment / Letter / Agenda / Minutes / Transcript']
+  body_text text [note: 'Scraped/extracted content; NULL if fetch failed']
+  scraped_at timestamptz
+
+  Note: '''
+    Documents for matters (attachments) AND meetings (agenda / minutes / transcript).
+    document_source disambiguates; linked via bridge_matter_document or bridge_meeting_document.
+  '''
+}
+
+Table dim_meeting {
+  meeting_sk int [pk]
+  meeting_id int [not null, note: 'Legistar EventId']
+  event_guid text [not null, note: 'Legistar EventGuid — REQUIRED for every detail/document fetch (ID alone -> HTTP 410); cannot be guessed']
+  committee_sk int [ref: > dim_committee.committee_sk]
+  meeting_date date
+  meeting_time time
+  location text [note: 'Cleaned; meeting subtype stripped into meeting_subtype']
+  meeting_subtype text [note: 'Regular / Special (from calendar / iCal)']
+  agenda_status text [note: 'Final / Draft']
+  minutes_status text [note: 'Final / Draft; NULL until minutes posted']
+  agenda_url text [note: 'View.ashx?M=A&ID=<EventId>&GUID=<event_guid>']
+  minutes_url text [note: 'View.ashx?M=M&ID=<EventId>&GUID=<event_guid>; present only after the meeting']
+  video_clip_id text [note: 'Granicus clip_id — the only link from a meeting to video/audio/transcript VTT']
+
+  Note: 'Meetings — committee meetings and full Board sessions. HTML-scraped (Events API unavailable). Owned by scrape-by-meeting.'
+}
+
+// ============================================================
+// Lookups
+// ============================================================
+
+Table dim_action_type {
+  action_type_code text [pk, note: 'Canonical code. Vocabulary (source of truth = scrape/action_types.py DIM_ACTION_TYPE_SEED): INTRODUCED, REFERRED, RECOMMENDED, PASSED_COMMITTEE, CONTINUED, PASSED_BOARD_1ST_READING, PASSED_BOARD_2ND_READING, ADOPTED, APPROVED, AMENDED, WITHDRAWN, TABLED, FILED, OTHER']
+  action_category text [note: 'introduction / referral / committee / board / amendment / disposition']
+  description text
+
+  Note: '''
+    Lookup replacing the old inline CHECK on action_type_code.
+    BOTH scrapers MUST map raw Legistar labels to these codes via ONE shared module,
+    because action_type_code participates in the fact_matter_action dedup key
+    (a mismatch silently produces duplicate fact rows).
+    SIGNED_BY_MAYOR / VETOED are matter-status, not meeting-agenda actions —
+    NOT emitted by the meeting scraper.
+  '''
+}
+
+// ============================================================
+// Facts
+// ============================================================
+
+Table fact_matter_action {
+  matter_action_sk int [pk]
+  matter_sk int [ref: > dim_matter.matter_sk]
+  meeting_sk int [ref: > dim_meeting.meeting_sk]
+  action_type_code text [not null, ref: > dim_action_type.action_type_code, note: 'Canonical code; raw label always kept in action_text']
+  action_result text [note: 'CHECK: Pass, Fail, or NULL — from MeetingDetail Result column']
+  action_date date [note: 'Defaults to meeting_date; agenda rows carry no separate per-action date']
+  action_text text [note: 'Raw Legistar action label / full motion text — traceability back through silver to bronze']
+
+  Note: '''
+    Single source of truth for matter lifecycle.
+    Grain: one row per (matter, meeting, action).
+    Natural key: (matter_id, meeting_id, action_type_code).
+    Also holds committee/voice/unanimous outcomes with no per-person breakdown.
+  '''
+}
+
+Table fact_vote {
+  vote_sk int [pk]
+  matter_sk int [ref: > dim_matter.matter_sk]
+  meeting_sk int [ref: > dim_meeting.meeting_sk]
+  person_sk int [ref: > dim_person.person_sk, note: 'SCD2 row valid at vote_date']
+  body_scope text [not null, note: 'CHECK: board, committee — which body cast this per-person vote (derived from meeting body)']
+  vote_date date [note: 'Defaults to meeting_date']
+  vote_value text [not null, note: 'CHECK: Aye, Nay, Excused, Absent. HTML emits "No" -> normalize to Nay in silver; Excused/Absent casing unconfirmed']
+  motion_text text [note: 'What is being voted on — preserves motion language (HistoryDetail lblActionText)']
+
+  Note: '''
+    Per-person roll-call votes — Board AND committee (body_scope distinguishes).
+    Voice/unanimous votes with no per-person breakdown live in fact_matter_action.
+    Grain: one row per (matter, meeting, person).
+    Natural key: (matter_id, meeting_id, person_id).
+  '''
+}
+
+Table fact_committee_membership {
+  membership_sk int [pk]
+  person_sk int [ref: > dim_person.person_sk]
+  committee_sk int [ref: > dim_committee.committee_sk]
+  position text [not null, note: 'CHECK: Chair, Vice Chair, Member']
+  effective_from date [not null]
+  effective_to date [note: 'NULL if current']
+  is_current boolean
+
+  Note: '''
+    SCD2-shaped fact for tenure on a committee.
+    Grain: one row per (person, committee, position, effective_from).
+  '''
+}
+
+// ============================================================
+// Bridges (many-to-many)
+// ============================================================
+
+Table bridge_matter_subject {
+  matter_sk int [ref: > dim_matter.matter_sk]
+  subject_sk int [ref: > dim_subject.subject_sk]
+
+  Indexes {
+    (matter_sk, subject_sk) [pk]
+  }
+
+  Note: 'M:M matters and subjects. NOTE: per-matter subject tags not yet found in any source (known gap — see DISCUSSION.md Q6).'
+}
+
+Table bridge_matter_sponsor {
+  matter_sk int [ref: > dim_matter.matter_sk]
+  person_sk int [ref: > dim_person.person_sk, note: 'SCD2 row valid at introduction_date']
+  sponsor_type text [not null, note: 'CHECK: Primary, Co']
+
+  Indexes {
+    (matter_sk, person_sk, sponsor_type) [pk]
+  }
+
+  Note: 'M:M matters and persons (sponsors). sponsor_type distinguishes primary from co-sponsors.'
+}
+
+Table bridge_matter_document {
+  matter_sk int [ref: > dim_matter.matter_sk]
+  document_sk int [ref: > dim_document.document_sk]
+
+  Indexes {
+    (matter_sk, document_sk) [pk]
+  }
+
+  Note: 'M:M matters and documents (matter attachments).'
+}
+
+Table bridge_meeting_document {
+  meeting_sk int [ref: > dim_meeting.meeting_sk]
+  document_sk int [ref: > dim_document.document_sk]
+
+  Indexes {
+    (meeting_sk, document_sk) [pk]
+  }
+
+  Note: 'M:M meetings and documents (agenda / minutes / transcript).'
+}

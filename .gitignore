@@ -1,0 +1,20 @@
+# raw landing zone (bronze) — never commit scraped data
+raw/
+
+# warehouse local artifacts
+warehouse/db/
+warehouse/exports/
+
+# dev env / scratch
+.venv/
+.probe/
+logs/
+*.log
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# os
+.DS_Store
