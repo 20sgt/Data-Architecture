@@ -4,25 +4,34 @@ Companion to scrape/legistar_scrape.py (the legislation slice). Crawl path:
 
     Calendar.aspx                 -> harvest meeting rows (EventId, EventGUID, body, date/time,
                                      location+subtype, agenda/minutes URLs, Granicus video clip id)
-    MeetingDetail.aspx?ID=&GUID=  -> meeting header + gridMain agenda items
-    HistoryDetail.aspx?ID=&GUID=  -> per-item action text + per-person roll-call votes
+    MeetingDetail.aspx?ID=&GUID=  -> meeting header + gridMain agenda items, INCLUDING each acted
+                                     row's `history_id` (MatterHistory id, from the radopen link)
+
+Single-producer facts (DISCUSSION D4, reversed): the meeting slice does NOT fetch HistoryDetail.
+`history_id` is read straight from MeetingDetail, which is all the gold transform needs to attach a
+meeting to its facts (history_id -> meeting_sk). The legislation slice (legistar_scrape.py) is the
+SOLE producer of action text + per-person roll-call votes, and it scrapes every matter that appears
+on a scraped agenda (each agenda row links straight to the matter's LegislationDetail page — the
+"discovery feed", captured here as AgendaItem.matter_url), so its coverage is a superset of this slice.
 
 Architecture (mirrors the legislation slice):
   * Plain `requests` + BeautifulSoup for every GET-able detail page. Parsing is DETERMINISTIC.
   * Playwright drives ONLY the Calendar postback (year/body selection) for deep enumeration.
     The default "This Month" calendar view is GET-able and already includes the current month's
-    completed meetings — enough for the pilot without a browser.
+    completed meetings — enough for the pilot without a browser. `--from/--to` filters the
+    enumerated rows to a date window (e.g. a 2-week test slice).
   * Emits one JSON file per meeting to the bronze landing zone:
         raw/meetings/ingest_date=YYYY-MM-DD/<EventId>.json
 
-Operational note (verified 2026-06-21): a meeting whose minutes status is "Draft" has NO
-populated actions/votes yet (gridMain Action/Result blank, no HistoryDetail links). Such meetings
-are still emitted to bronze (with status=Draft, no actions) so the incremental job can re-scrape
-them from gold once minutes reach "Final Draft"/"Final"; pass --skip-draft to skip them instead.
+Operational note (verified 2026-06-21): a meeting whose minutes status is "Draft" has NO action
+labels yet (gridMain Action/Result blank, no radopen links). Such meetings are still emitted to
+bronze (with status=Draft, no actions) so the incremental job can re-scrape them once minutes reach
+"Final Draft"/"Final"; pass --skip-draft to skip them instead.
 
 CLI:
     python -m scrape.legistar_meetings --event 1422963 --guid 0C4442D2-...        # one meeting
     python -m scrape.legistar_meetings --current-month --raw-dir raw/meetings ... # GET, no browser
+    python -m scrape.legistar_meetings --from 2026-06-11 --to 2026-06-25 ...      # 2-week window
     python -m scrape.legistar_meetings --year 2026 --raw-dir raw/meetings ...     # Playwright enum
 """
 
@@ -41,6 +50,13 @@ from datetime import date, datetime
 import requests
 from bs4 import BeautifulSoup
 
+try:                                   # `-m scrape.legistar_meetings`, imports, and tests
+    from scrape.history_detail import Vote
+except ModuleNotFoundError as e:       # fall back ONLY when the `scrape` package isn't on the path
+    if (e.name or "").split(".")[0] != "scrape":   # a real failure INSIDE the module must surface
+        raise
+    from history_detail import Vote   # `python scrape/legistar_meetings.py`
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("legistar-meetings")
 
@@ -58,27 +74,17 @@ _CLIPID = re.compile(r"ID1=(\d+)")
 _SUBTYPE = re.compile(
     r"\s+(Regular|Special|Recessed|Closed Session|Joint|Adjourned|Recess)\s+Meeting\s*$", re.I)
 
-# Expected HistoryDetail gridVote literals (Aye/Excused confirmed live; rest expected). Used ONLY
-# to flag novel literals — NOT as a capture filter (vote rows are detected structurally so an
-# unanticipated literal is captured + warned, never silently dropped).
-KNOWN_VOTE_LITERALS = {"Aye", "No", "Nay", "Absent", "Excused", "Recused", "Present"}
-
 SESSION = requests.Session()
 SESSION.headers["User-Agent"] = UA
 
 
 # --------------------------------------------------------------------------- data model
-@dataclasses.dataclass
-class Vote:
-    person_id: str | None        # PersonId from PersonDetail.aspx?ID= (robust join key)
-    person_name: str
-    vote_value: str              # raw literal: Aye | No | Excused | Absent | Recused
-
-
+# `Vote` is imported from scrape.history_detail (the shared HistoryDetail parser) above.
 @dataclasses.dataclass
 class AgendaItem:
     item_seq: int                # 0-indexed position in gridMain
     matter_file: str | None      # gridMain c0 — THE join key to dim_matter (file string)
+    matter_url: str | None       # LegislationDetail URL from the c0 link — the Option-2 discovery feed
     agenda_number: str | None    # c2
     matter_name: str | None      # c3 (short subject)
     matter_type: str | None      # c4 (Ordinance / Resolution / ...)
@@ -86,9 +92,12 @@ class AgendaItem:
     title: str | None            # c6 (full title)
     action_raw: str | None       # c7 raw Legistar action label (None if no action this meeting)
     action_result: str | None    # c8 Pass | Fail | None
-    history_id: str | None       # MatterHistory id from the radopen link
+    history_id: str | None       # MatterHistory id from the radopen link (the meeting->fact join key)
     history_url: str | None
-    action_text: str | None      # HistoryDetail lblActionText (full motion text)
+    # action_text / votes come from HistoryDetail, which the meeting slice no longer fetches
+    # (single-producer facts — legislation owns these). Kept on the bronze contract but always empty
+    # here until the Phase-2 staging rewrite drops them.
+    action_text: str | None
     votes: list[Vote]
 
 
@@ -253,39 +262,6 @@ def parse_calendar(html: str) -> list[CalendarRow]:
     return rows
 
 
-def parse_history(html: str) -> tuple[str | None, str | None, str | None, list[Vote]]:
-    """Parse a HistoryDetail page -> (action_raw, action_result, action_text, votes)."""
-    soup = BeautifulSoup(html, "lxml")
-    action = _lbl(soup, "lblAction")
-    result = _lbl(soup, "lblResult")
-    action_text = _lbl(soup, "lblActionText")
-    votes: list[Vote] = []
-    grid = soup.select_one("table.rgMasterTable")
-    if grid:
-        for tr in grid.select("tbody tr"):
-            tds = tr.find_all("td")
-            if len(tds) < 2:
-                continue
-            person = _txt(tds[0])
-            value = _txt(tds[-1])
-            a = tds[0].find("a", href=re.compile(r"PersonDetail\.aspx", re.I))
-            pid = re.search(r"[?&]ID=(\d+)", a["href"]) if a and a.get("href") else None
-            # A vote row is detected STRUCTURALLY: a person link in tds[0] (every real roll-call
-            # row has one) or a known literal as a fallback — never by value-membership alone, so
-            # an unanticipated literal is captured (and flagged), not silently dropped.
-            is_vote_row = bool(a) or (person and value in KNOWN_VOTE_LITERALS)
-            if not is_vote_row or not value:
-                continue
-            if value not in KNOWN_VOTE_LITERALS:
-                log.warning("unrecognized vote literal %r for %r — capturing verbatim", value, person)
-            votes.append(Vote(
-                person_id=pid.group(1) if pid else None,
-                person_name=person or "",
-                vote_value=value,             # raw literal; normalized (No->Nay) at the merge
-            ))
-    return action, result, action_text, votes
-
-
 def parse_meeting_detail(html: str) -> tuple[dict, list[AgendaItem]]:
     """Parse MeetingDetail header + gridMain agenda items (votes not yet fetched). Pure."""
     soup = BeautifulSoup(html, "lxml")
@@ -320,9 +296,11 @@ def parse_meeting_detail(html: str) -> tuple[dict, list[AgendaItem]]:
                 continue
             onclicks = " ".join(a.get("onclick", "") for a in tr.find_all("a"))
             m = _RADOPEN.search(onclicks)
+            file_a = tds[0].find("a", href=re.compile(r"LegislationDetail\.aspx", re.I))
             items.append(AgendaItem(
                 item_seq=seq,
                 matter_file=_txt(tds[0]),
+                matter_url=(BASE + file_a["href"].replace("&amp;", "&")) if file_a and file_a.get("href") else None,
                 agenda_number=_txt(tds[2]),
                 matter_name=_txt(tds[3]),
                 matter_type=_txt(tds[4]),
@@ -362,7 +340,11 @@ def scrape_meeting(meeting_id: str, event_guid: str,
                    cal: CalendarRow | None = None,
                    with_text: bool = False,
                    skip_draft: bool = False) -> Meeting | None:
-    """Scrape a single meeting (MeetingDetail + per-item HistoryDetail votes)."""
+    """Scrape a single meeting: MeetingDetail header + agenda items (history_id included).
+
+    Single-producer facts: HistoryDetail is NOT fetched here (legislation owns action text + votes);
+    each agenda row's `history_id` is the meeting->fact join key the gold transform needs.
+    """
     url = f"{BASE}MeetingDetail.aspx?ID={meeting_id}&GUID={event_guid}&Options="
     header, items = parse_meeting_detail(_get(url))
 
@@ -389,21 +371,14 @@ def scrape_meeting(meeting_id: str, event_guid: str,
     )
     m.documents = _build_documents(m, with_text)
 
-    # Only follow HistoryDetail for items actually acted on this meeting (blank action ->
-    # blank HistoryDetail, verified). Saves a fetch per no-action agenda item.
-    voted = 0
-    for it in items:
-        if it.history_url and it.action_raw:
-            action, result, action_text, votes = parse_history(_get(it.history_url))
-            it.action_raw = it.action_raw or action
-            it.action_result = it.action_result or result
-            it.action_text = action_text
-            it.votes = votes
-            voted += len(votes)
-
-    log.info("meeting %s | %-38s | %s | minutes=%s | %d items | %d votes",
+    # Single-producer facts (DISCUSSION D4, reversed): the meeting slice no longer fetches
+    # HistoryDetail. `history_id` for each acted agenda row was already captured from the radopen
+    # link in parse_meeting_detail — that is all the gold transform needs to attach a meeting to its
+    # facts (history_id -> meeting_sk). Action text + per-person roll-call come solely from the
+    # legislation slice now, so item.action_text / item.votes stay empty here.
+    log.info("meeting %s | %-38s | %s | minutes=%s | %d agenda items",
              meeting_id, (m.body_name or "")[:38], m.meeting_date,
-             m.minutes_status, len(items), voted)
+             m.minutes_status, len(items))
     return m
 
 
@@ -448,6 +423,22 @@ def _select_radcombo(page, base_id: str, item_text: str) -> None:
 
 
 # --------------------------------------------------------------------------- orchestration / CLI
+def _meeting_in_window(date_raw: str | None, start: date | None, end: date | None) -> bool:
+    """True if a calendar row's raw meeting_date (e.g. '6/16/2026') falls in [start, end].
+
+    A window lets the no-browser `--current-month` enumeration be sliced to a test range (e.g. 2
+    weeks). Blank/unparseable dates are excluded when a window is set."""
+    if start is None and end is None:
+        return True
+    if not date_raw:
+        return False
+    try:
+        d = datetime.strptime(date_raw.strip(), "%m/%d/%Y").date()
+    except ValueError:
+        return False
+    return (start is None or d >= start) and (end is None or d <= end)
+
+
 def _write_one(m: Meeting, out_dir: Path) -> None:
     (out_dir / f"{m.meeting_id}.json").write_text(
         json.dumps(dataclasses.asdict(m), indent=2, ensure_ascii=False))
@@ -485,6 +476,10 @@ def main() -> None:
                     help="GET the default calendar (no browser) and scrape completed meetings")
     ap.add_argument("--year", help="enumerate a year via Playwright (needs chromium)")
     ap.add_argument("--body", help="restrict enumeration to a body name")
+    ap.add_argument("--from", dest="start",
+                    help="window start YYYY-MM-DD — filter enumerated meetings (no browser needed "
+                         "when the window is within the current month)")
+    ap.add_argument("--to", dest="end", help="window end YYYY-MM-DD")
     ap.add_argument("--all", action="store_true",
                     help="with --current-month/--year: scrape every row, not only completed")
     ap.add_argument("--with-text", action="store_true", help="extract agenda/minutes PDF text")
@@ -515,13 +510,19 @@ def main() -> None:
         if out_dir is not None:
             for mm in meetings:
                 _write_one(mm, out_dir)
-    elif args.current_month or args.year:
+    elif args.current_month or args.year or (args.start and args.end):
         rows = enumerate_calendar(year=args.year, body=args.body) if args.year \
             else enumerate_current_month()
+        if args.start or args.end:
+            s = date.fromisoformat(args.start) if args.start else None
+            e = date.fromisoformat(args.end) if args.end else None
+            kept = [r for r in rows if _meeting_in_window(r.meeting_date, s, e)]
+            log.info("date window %s..%s -> %d of %d meetings", s, e, len(kept), len(rows))
+            rows = kept
         meetings = collect(rows, out_dir=out_dir, completed_only=not args.all,
                            with_text=args.with_text, skip_draft=args.skip_draft)
     else:
-        ap.error("provide --event/--guid, --current-month, or --year")
+        ap.error("provide --event/--guid, --current-month, --year, or --from/--to")
 
     if args.out:
         Path(args.out).write_text(
