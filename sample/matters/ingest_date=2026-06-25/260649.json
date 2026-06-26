@@ -1,0 +1,70 @@
+{
+  "file_number": "260649",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8059699&GUID=8B167C10-2BD1-4CCF-AB97-75A9FFDF6DF9&Options=Advanced&Search=",
+  "name": "Hearing - Civil Grand Jury Report - Red Flag Warning - Wildfire Risk in San Francisco’s Glen Canyon",
+  "title": "Hearing on the 2025-2026 Civil Grand Jury Report, entitled \"Red Flag Warning - Wildfire Risk in San Francisco’s Glen Canyon.\"",
+  "type": "Hearing",
+  "status": "Pending Committee Action",
+  "introduced": "6/16/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Government Audit and Oversight Committee",
+  "sponsors": [],
+  "related_files": [
+    "260650"
+  ],
+  "attachments": [
+    {
+      "name": "CGJ Report 060426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15556853&GUID=B6584369-88D0-4508-8C68-732102FA2279"
+    },
+    {
+      "name": "CGJ Letters 060226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15556854&GUID=4F38853A-FC6D-4E8D-9C48-491CEF7E2389"
+    },
+    {
+      "name": "CGJ Press Release",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15556855&GUID=F96A8006-6133-418B-9EF8-AB4A95008271"
+    },
+    {
+      "name": "COB Memo 060426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557153&GUID=173AF1C1-1FC7-4D77-9D7B-A5D16EBFAF4C"
+    },
+    {
+      "name": "FYI Referral 062326",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15650310&GUID=0BE0A7E6-8171-4A2C-98D9-2FEBB1C29500"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/23/2026",
+      "body": "Clerk of the Board",
+      "action": "REFERRED TO DEPARTMENT",
+      "result": "",
+      "history_id": "37096425",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37096425&GUID=ED91765B-2F75-401F-9CFC-80F4FB4E3131",
+      "votes": []
+    },
+    {
+      "date": "6/16/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36936797",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36936797&GUID=7A122406-AE59-4ED2-B477-D9E015F9CF22",
+      "votes": []
+    },
+    {
+      "date": "6/4/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36936796",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36936796&GUID=1C1C546D-24C2-48CE-B85A-DC2F3FED4CD3",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

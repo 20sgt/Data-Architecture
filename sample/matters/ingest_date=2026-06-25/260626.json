@@ -1,0 +1,78 @@
+{
+  "file_number": "260626",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060326&GUID=0C95A0AB-08B7-40BE-960A-DD7189A83224&Options=&Search=",
+  "name": "Law Enforcement Equipment Use Policy - 2025 Annual Report",
+  "title": "Resolution approving the San Francisco Police Department’s Use of Equipment Policy 2025 Annual Report, consistent with the criteria set forth in state law.",
+  "type": "Resolution",
+  "status": "New Business",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Government Audit and Oversight Committee",
+  "sponsors": [
+    "Mayor"
+  ],
+  "related_files": [
+    "220641"
+  ],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558179&GUID=BAF5A980-C269-456B-8830-FA4E69CDC300"
+    },
+    {
+      "name": "2025 Annual Report",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558172&GUID=54BFC4DD-D4C2-49AB-920D-528DC0307D3A"
+    },
+    {
+      "name": "SFPD Memo 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558174&GUID=D4B4E773-E34A-40D9-B2D9-A9084847F8EB"
+    },
+    {
+      "name": "MYR Memo 060226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558175&GUID=E6A9635D-07EF-4F8D-8ED7-60DEAD719D5D"
+    },
+    {
+      "name": "Comm Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583328&GUID=46ECA950-B844-4A72-96B7-14C074F5D7F8"
+    },
+    {
+      "name": "SFPD Presentation 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558173&GUID=5E1079A1-6661-4BAC-BC27-8AFE2928239E"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/18/2026",
+      "body": "Government Audit and Oversight Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36967890",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36967890&GUID=EE519DF0-64A6-4301-AFEB-877EEC284ECB",
+      "votes": [
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36939613",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939613&GUID=2336D2A8-BE32-41B9-9DFA-19887177E754",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

@@ -1,0 +1,88 @@
+{
+  "file_number": "260523",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8030247&GUID=91140708-E390-4AE0-BE40-C8968D3AE179&Options=&Search=",
+  "name": "Cost of Living Adjustment to the Contract for Budget and Legislative Analyst Services - $3,544,900 - FY2026-2027",
+  "title": "Motion enacting a 4.50% cost of living adjustment (COLA) to the base Fiscal Year (FY) 2025-2026 contract amount of $3,392,249 for Budget and Legislative Analyst Services, to be effectuated as of July 1, 2026, resulting in a new FY2026-2027 contract amount of $3,544,900 an annual increase of $152,651 and a total not to exceed contract amount of $36,000,000 for the contract term ending December 31, 2031; and directing the Clerk of the Board to take all necessary administrative action to amend the contract accordingly.",
+  "type": "Motion",
+  "status": "Passed",
+  "introduced": "5/12/2026",
+  "on_agenda": null,
+  "final_action": "6/23/2026",
+  "enactment_date": "6/23/2026",
+  "enactment_number": "M26-052",
+  "in_control": "Clerk of the Board",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15482115&GUID=58D4EFFE-508C-497A-8B2C-EFBB62D0BE03"
+    },
+    {
+      "name": "Form 126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15482132&GUID=34CCCB63-1DEB-492D-8726-A51CC43735A8"
+    },
+    {
+      "name": "Cmte Pkt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583790&GUID=3DE0F3B2-91D5-4DEC-A6D7-C6AFBF9738A7"
+    },
+    {
+      "name": "COB Presentation 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15587814&GUID=DB373327-6E79-431A-BE66-9BDE62535554"
+    },
+    {
+      "name": "Board Pkt 062326",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15613240&GUID=6C3AA2AE-922E-4F68-96FC-80D9DA277C02"
+    },
+    {
+      "name": "Leg Final",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15653114&GUID=326D6A24-E00E-43E8-9A18-377F868BEBBC"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/23/2026",
+      "body": "Board of Supervisors",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Finance Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36995251",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36995251&GUID=AC1F603B-1E6E-44FE-9A4A-2FFE8C056F23",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "5/12/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36784921",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36784921&GUID=48FF7ABB-3F4E-4DE3-9A1C-73E3DFB12B45",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

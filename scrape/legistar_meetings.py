@@ -7,12 +7,11 @@ Companion to scrape/legistar_scrape.py (the legislation slice). Crawl path:
     MeetingDetail.aspx?ID=&GUID=  -> meeting header + gridMain agenda items, INCLUDING each acted
                                      row's `history_id` (MatterHistory id, from the radopen link)
 
-Single-producer facts (DISCUSSION D4, reversed): the meeting slice does NOT fetch HistoryDetail.
-`history_id` is read straight from MeetingDetail, which is all the gold transform needs to attach a
-meeting to its facts (history_id -> meeting_sk). The legislation slice (legistar_scrape.py) is the
-SOLE producer of action text + per-person roll-call votes, and it scrapes every matter that appears
-on a scraped agenda (each agenda row links straight to the matter's LegislationDetail page — the
-"discovery feed", captured here as AgendaItem.matter_url), so its coverage is a superset of this slice.
+Single-producer facts: the meeting slice does NOT fetch HistoryDetail. `history_id` (read straight
+from MeetingDetail) is all the gold transform needs to attach a meeting to its facts
+(history_id -> meeting_sk). The legislation slice (legistar_scrape.py) is the sole producer of action
+text + roll-call votes, and it scrapes every matter on a scraped agenda via the LegislationDetail
+link this slice captures as AgendaItem.matter_url (the "discovery feed").
 
 Architecture (mirrors the legislation slice):
   * Plain `requests` + BeautifulSoup for every GET-able detail page. Parsing is DETERMINISTIC.
@@ -23,7 +22,7 @@ Architecture (mirrors the legislation slice):
   * Emits one JSON file per meeting to the bronze landing zone:
         raw/meetings/ingest_date=YYYY-MM-DD/<EventId>.json
 
-Operational note (verified 2026-06-21): a meeting whose minutes status is "Draft" has NO action
+Operational note: a meeting whose minutes status is "Draft" has NO action
 labels yet (gridMain Action/Result blank, no radopen links). Such meetings are still emitted to
 bronze (with status=Draft, no actions) so the incremental job can re-scrape them once minutes reach
 "Final Draft"/"Final"; pass --skip-draft to skip them instead.
@@ -39,31 +38,24 @@ from __future__ import annotations
 
 import re
 import json
-import time
 import logging
 import argparse
 import dataclasses
-from io import BytesIO
 from pathlib import Path
 from datetime import date, datetime
 
-import requests
 from bs4 import BeautifulSoup
 
-try:                                   # `-m scrape.legistar_meetings`, imports, and tests
-    from scrape.history_detail import Vote
+try:                                   # `-m scrape.legistar_meetings`, direct run, and imports
+    from scrape.fetch import BASE, UA, get, extract_pdf_text
 except ModuleNotFoundError as e:       # fall back ONLY when the `scrape` package isn't on the path
     if (e.name or "").split(".")[0] != "scrape":   # a real failure INSIDE the module must surface
         raise
-    from history_detail import Vote   # `python scrape/legistar_meetings.py`
+    from fetch import BASE, UA, get, extract_pdf_text   # `python scrape/legistar_meetings.py`
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("legistar-meetings")
 
-BASE = "https://sfgov.legistar.com/"
-# Polite crawling: identify ourselves and rate-limit (no robots.txt exists, so it's on us).
-UA = "Mozilla/5.0 (research; MSDS683 student project; contact jacksoncdawson@gmail.com)"
-RATE_LIMIT_S = 1.0
 CP = "ctl00_ContentPlaceHolder1_"
 
 # The HistoryDetail link on a gridMain agenda row is a radopen() ONCLICK, not an href.
@@ -73,13 +65,11 @@ _CLIPID = re.compile(r"ID1=(\d+)")
 # Meeting subtype is appended to the location string, e.g. "... Room 250 Recessed Meeting".
 _SUBTYPE = re.compile(
     r"\s+(Regular|Special|Recessed|Closed Session|Joint|Adjourned|Recess)\s+Meeting\s*$", re.I)
-
-SESSION = requests.Session()
-SESSION.headers["User-Agent"] = UA
+# Calendar/agenda RadGrid rows carry >= 11 cells; fewer means a header/spacer row to skip.
+MIN_GRID_COLS = 11
 
 
 # --------------------------------------------------------------------------- data model
-# `Vote` is imported from scrape.history_detail (the shared HistoryDetail parser) above.
 @dataclasses.dataclass
 class AgendaItem:
     item_seq: int                # 0-indexed position in gridMain
@@ -94,11 +84,8 @@ class AgendaItem:
     action_result: str | None    # c8 Pass | Fail | None
     history_id: str | None       # MatterHistory id from the radopen link (the meeting->fact join key)
     history_url: str | None
-    # action_text / votes come from HistoryDetail, which the meeting slice no longer fetches
-    # (single-producer facts — legislation owns these). Kept on the bronze contract but always empty
-    # here until the Phase-2 staging rewrite drops them.
-    action_text: str | None
-    votes: list[Vote]
+    # No action_text / votes: those are HistoryDetail-only, which the legislation slice owns
+    # (single-producer facts). The fields above are all free from MeetingDetail.
 
 
 @dataclasses.dataclass
@@ -127,43 +114,7 @@ class Meeting:
     agenda_items: list[AgendaItem]
 
 
-# --------------------------------------------------------------------------- http helpers
-RETRY_STATUS = {429, 500, 502, 503, 504}   # transient — retry; 4xx like 410 are permanent
-MAX_RETRIES = 3
-
-
-def _request(url: str, timeout: int) -> requests.Response:
-    """GET with rate-limit + bounded backoff on transient failures. Permanent errors (e.g. 410
-    from a missing GUID) raise immediately so they aren't retried."""
-    last: Exception | None = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        time.sleep(RATE_LIMIT_S)
-        try:
-            r = SESSION.get(url, timeout=timeout)
-            if r.status_code in RETRY_STATUS:
-                raise requests.HTTPError(f"{r.status_code} transient", response=r)
-            r.raise_for_status()
-            return r
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as e:
-            status = getattr(getattr(e, "response", None), "status_code", None)
-            if status is not None and status not in RETRY_STATUS:
-                raise                          # permanent (404/410/...) — do not retry
-            last = e
-            if attempt < MAX_RETRIES:
-                log.warning("transient fetch error (%s) on %s — retry %d/%d",
-                            e, url, attempt, MAX_RETRIES - 1)
-                time.sleep(RATE_LIMIT_S * 2 * attempt)
-    raise last  # type: ignore[misc]
-
-
-def _get(url: str) -> str:
-    return _request(url, timeout=30).text
-
-
-def _get_bytes(url: str) -> bytes:
-    return _request(url, timeout=60).content
-
-
+# --------------------------------------------------------------------------- parse helpers
 def _txt(el) -> str | None:
     if el is None:
         return None
@@ -189,16 +140,6 @@ def split_subtype(location_raw: str | None) -> tuple[str | None, str | None]:
     return loc, None
 
 
-def extract_pdf_text(url: str) -> str | None:
-    """Download a View.ashx document and extract text if it's a PDF."""
-    from pypdf import PdfReader
-    data = _get_bytes(url)
-    if data[:4] != b"%PDF":
-        return None
-    reader = PdfReader(BytesIO(data))
-    return "\n".join(p.extract_text() or "" for p in reader.pages)
-
-
 # --------------------------------------------------------------------------- pure parsers
 @dataclasses.dataclass
 class CalendarRow:
@@ -221,10 +162,11 @@ def parse_calendar(html: str) -> list[CalendarRow]:
     grid = soup.select_one("table.rgMasterTable")
     rows: list[CalendarRow] = []
     if not grid:
+        log.warning("calendar: no rgMasterTable found — empty page or layout change")
         return rows
     for tr in grid.select("tbody tr"):
         tds = tr.find_all("td")
-        if len(tds) < 11:
+        if len(tds) < MIN_GRID_COLS:
             continue
         md = tds[5].find("a", href=re.compile(r"MeetingDetail\.aspx", re.I))
         if not md:
@@ -289,10 +231,12 @@ def parse_meeting_detail(html: str) -> tuple[dict, list[AgendaItem]]:
 
     items: list[AgendaItem] = []
     grid = soup.select_one("table.rgMasterTable")
-    if grid:
+    if not grid:
+        log.warning("meeting agenda: no gridMain found — layout change or empty agenda")
+    else:
         for seq, tr in enumerate(grid.select("tbody tr")):
             tds = tr.find_all("td")
-            if len(tds) < 11:
+            if len(tds) < MIN_GRID_COLS:
                 continue
             onclicks = " ".join(a.get("onclick", "") for a in tr.find_all("a"))
             m = _RADOPEN.search(onclicks)
@@ -310,8 +254,6 @@ def parse_meeting_detail(html: str) -> tuple[dict, list[AgendaItem]]:
                 action_result=_txt(tds[8]),
                 history_id=m.group(2) if m else None,
                 history_url=(BASE + m.group(1).replace("&amp;", "&")) if m else None,
-                action_text=None,
-                votes=[],
             ))
     return header, items
 
@@ -342,11 +284,10 @@ def scrape_meeting(meeting_id: str, event_guid: str,
                    skip_draft: bool = False) -> Meeting | None:
     """Scrape a single meeting: MeetingDetail header + agenda items (history_id included).
 
-    Single-producer facts: HistoryDetail is NOT fetched here (legislation owns action text + votes);
-    each agenda row's `history_id` is the meeting->fact join key the gold transform needs.
+    No HistoryDetail fetch — see the single-producer note in the module docstring.
     """
     url = f"{BASE}MeetingDetail.aspx?ID={meeting_id}&GUID={event_guid}&Options="
-    header, items = parse_meeting_detail(_get(url))
+    header, items = parse_meeting_detail(get(url))
 
     if skip_draft and (header.get("minutes_status") or "").strip().lower() == "draft":
         log.info("skip %s (%s) — minutes Draft, actions not posted yet",
@@ -371,11 +312,9 @@ def scrape_meeting(meeting_id: str, event_guid: str,
     )
     m.documents = _build_documents(m, with_text)
 
-    # Single-producer facts (DISCUSSION D4, reversed): the meeting slice no longer fetches
-    # HistoryDetail. `history_id` for each acted agenda row was already captured from the radopen
-    # link in parse_meeting_detail — that is all the gold transform needs to attach a meeting to its
-    # facts (history_id -> meeting_sk). Action text + per-person roll-call come solely from the
-    # legislation slice now, so item.action_text / item.votes stay empty here.
+    # history_id was captured from each row's radopen link in parse_meeting_detail (the only
+    # meeting->fact key gold needs); action_text/votes come from the legislation slice and stay
+    # empty here. No HistoryDetail fetch.
     log.info("meeting %s | %-38s | %s | minutes=%s | %d agenda items",
              meeting_id, (m.body_name or "")[:38], m.meeting_date,
              m.minutes_status, len(items))
@@ -385,7 +324,7 @@ def scrape_meeting(meeting_id: str, event_guid: str,
 # --------------------------------------------------------------------------- enumeration
 def enumerate_current_month() -> list[CalendarRow]:
     """GET the default 'This Month' calendar (no browser) and parse its rows."""
-    return parse_calendar(_get(BASE + "Calendar.aspx"))
+    return parse_calendar(get(BASE + "Calendar.aspx"))
 
 
 def enumerate_calendar(year: str | int | None = None, body: str | None = None) -> list[CalendarRow]:

@@ -1,14 +1,13 @@
 // SF Legislation Analytics — Gold Layer Schema (DBML)
-// WORKING SOURCE OF TRUTH. Paste into https://dbdiagram.io/d to render the ERD,
+// SINGLE SOURCE OF TRUTH for the gold layer. Paste into https://dbdiagram.io/d to render the ERD,
 // or sync the dbdocs project (https://dbdocs.io/jacksoncdawson/Group-Project-ERD).
-// Companion docs: ERD.md (this directory) and ../DISCUSSION.md (open decisions).
-// Milestone-2 snapshot archived at schema_milestone2.dbml.
 //
-// CHANGELOG vs milestone 2:
-//   + dim_meeting.event_guid (mandatory for refetch), video_clip_id, meeting_subtype, agenda_status, minutes_status
-//   + fact_matter_action.action_result; action_type_code now references dim_action_type lookup (was inline CHECK)
-//   + fact_vote.body_scope (capture committee per-person votes too, not Board-only)
-//   + dim_action_type lookup; bridge_meeting_document; dim_document.document_source (+ document_id now nullable)
+// FACT PRODUCTION — single-producer (Option 2, decided 2026-06-25): the legislation slice is the
+// SOLE producer of fact_matter_action / fact_vote; the meeting slice supplies dim_meeting and a
+// history_id -> meeting map. fact.meeting_sk is filled by an EXACT join on history_id (the
+// MatterHistory id both slices carry), NOT by cross-slice dedup. Legislation also scrapes every
+// matter on a scraped agenda (the agenda discovery feed), so its coverage is a superset of the
+// meeting slice and no "html_stub" matters arise.
 
 Project sf_legislation_analytics {
   database_type: 'PostgreSQL'
@@ -18,7 +17,7 @@ Project sf_legislation_analytics {
     dedup on SOURCE natural keys) -> gold (this star schema).
     Surrogate keys (_sk) and SCD2 are GOLD-ONLY; scrapers never write surrogates.
     The Legistar Web API is unusable for SF (frozen ~2018-2020 + corrupted), so all
-    current data is HTML-scraped. See ../DISCUSSION.md.
+    current data is HTML-scraped.
   '''
 }
 
@@ -58,7 +57,7 @@ Table dim_committee {
 
 Table dim_matter {
   matter_sk int [pk]
-  matter_id int [note: 'Legistar MatterId; NULL for html_stub matters (referenced by a meeting agenda but not yet scraped by the legislation slice)']
+  matter_id int [note: 'Legistar MatterId (from the LegislationDetail URL)']
   matter_file text [note: 'File number, e.g. 240123 — the ONLY join key from a meeting agenda row']
   matter_title text
   matter_name text
@@ -80,7 +79,7 @@ Table dim_subject {
   subject_id int [not null, note: 'Legistar IndexId']
   subject_name text [not null, note: 'Housing, Transportation, Public Safety, etc.']
 
-  Note: 'Legistar subject index — joined to matters via bridge_matter_subject.'
+  Note: 'Legistar subject index — joined to matters via bridge_matter_subject. UNPOPULATED: the SF LegislationDetail HTML exposes no Topic/Subject/Index field (confirmed 2026-06-25) and the Legistar API is frozen, so there is no scrape-able SF source. Placeholder.'
 }
 
 Table dim_document {
@@ -128,11 +127,9 @@ Table dim_action_type {
 
   Note: '''
     Lookup replacing the old inline CHECK on action_type_code.
-    BOTH scrapers MUST map raw Legistar labels to these codes via ONE shared module,
-    because action_type_code participates in the fact_matter_action dedup key
-    (a mismatch silently produces duplicate fact rows).
-    SIGNED_BY_MAYOR / VETOED are matter-status, not meeting-agenda actions —
-    NOT emitted by the meeting scraper.
+    Raw Legistar labels map to these codes via the shared scrape/action_types.py module (the single
+    label->code authority). Single-producer: only the legislation slice writes fact_matter_action,
+    so labels are normalized in one place.
   '''
 }
 
@@ -143,16 +140,16 @@ Table dim_action_type {
 Table fact_matter_action {
   matter_action_sk int [pk]
   matter_sk int [ref: > dim_matter.matter_sk]
-  meeting_sk int [ref: > dim_meeting.meeting_sk]
+  meeting_sk int [ref: > dim_meeting.meeting_sk, note: 'Nullable; filled by an EXACT join on history_id to the meeting map (NULL for administrative/non-meeting actions)']
   action_type_code text [not null, ref: > dim_action_type.action_type_code, note: 'Canonical code; raw label always kept in action_text']
-  action_result text [note: 'CHECK: Pass, Fail, or NULL — from MeetingDetail Result column']
-  action_date date [note: 'Defaults to meeting_date; agenda rows carry no separate per-action date']
+  action_result text [note: 'CHECK: Pass, Fail, or NULL — from the legislation history grid']
+  action_date date [note: 'Action date from the legislation history grid']
   action_text text [note: 'Raw Legistar action label / full motion text — traceability back through silver to bronze']
 
   Note: '''
-    Single source of truth for matter lifecycle.
-    Grain: one row per (matter, meeting, action).
-    Natural key: (matter_id, meeting_id, action_type_code).
+    Single source of truth for matter lifecycle. Produced SOLELY by the legislation slice
+    (single-producer); meeting_sk is attached by an exact join on history_id. No cross-slice dedup.
+    Grain: one row per (matter, meeting, action). Natural key: history_id (the MatterHistory id).
     Also holds committee/voice/unanimous outcomes with no per-person breakdown.
   '''
 }
@@ -160,18 +157,18 @@ Table fact_matter_action {
 Table fact_vote {
   vote_sk int [pk]
   matter_sk int [ref: > dim_matter.matter_sk]
-  meeting_sk int [ref: > dim_meeting.meeting_sk]
-  person_sk int [ref: > dim_person.person_sk, note: 'SCD2 row valid at vote_date']
-  body_scope text [not null, note: 'CHECK: board, committee — which body cast this per-person vote (derived from meeting body)']
-  vote_date date [note: 'Defaults to meeting_date']
-  vote_value text [not null, note: 'CHECK: Aye, Nay, Excused, Absent. HTML emits "No" -> normalize to Nay in silver; Excused/Absent casing unconfirmed']
-  motion_text text [note: 'What is being voted on — preserves motion language (HistoryDetail lblActionText)']
+  meeting_sk int [ref: > dim_meeting.meeting_sk, note: 'Nullable; filled by the exact history_id join']
+  person_sk int [ref: > dim_person.person_sk, note: 'SCD2 row valid at vote_date; joined on the real Legistar PersonId']
+  body_scope text [not null, note: 'CHECK: board, committee — which body cast this per-person vote (derived from the action body)']
+  vote_date date [note: 'From the legislation history grid']
+  vote_value text [not null, note: 'CHECK: Aye, Nay, Excused, Absent (+ Recused/Present passthrough). HTML emits "No" -> normalize to Nay in silver']
+  motion_text text [note: 'What is being voted on — preserves motion language']
 
   Note: '''
-    Per-person roll-call votes — Board AND committee (body_scope distinguishes).
-    Voice/unanimous votes with no per-person breakdown live in fact_matter_action.
-    Grain: one row per (matter, meeting, person).
-    Natural key: (matter_id, meeting_id, person_id).
+    Per-person roll-call votes — Board AND committee (body_scope distinguishes). Produced SOLELY by
+    the legislation slice (person_id from the shared HistoryDetail parser); meeting_sk attached by the
+    history_id join. Voice/unanimous outcomes with no per-person breakdown live in fact_matter_action.
+    Grain: one row per (matter, meeting, person). Natural key: (history_id, person_id).
   '''
 }
 
@@ -187,6 +184,9 @@ Table fact_committee_membership {
   Note: '''
     SCD2-shaped fact for tenure on a committee.
     Grain: one row per (person, committee, position, effective_from).
+    UNPOPULATED, but the source EXISTS (confirmed 2026-06-25): PersonDetail.aspx lists the bodies a
+    person sits on (Department Name / Title / Start Date / End Date / Appointed By); a future
+    People.aspx -> PersonDetail pass can populate it. position<-Title, effective_from/to<-Start/End.
   '''
 }
 
@@ -202,7 +202,7 @@ Table bridge_matter_subject {
     (matter_sk, subject_sk) [pk]
   }
 
-  Note: 'M:M matters and subjects. NOTE: per-matter subject tags not yet found in any source (known gap — see DISCUSSION.md Q6).'
+  Note: 'M:M matters and subjects. UNPOPULATED — no per-matter subject source on the SF site (see dim_subject).'
 }
 
 Table bridge_matter_sponsor {

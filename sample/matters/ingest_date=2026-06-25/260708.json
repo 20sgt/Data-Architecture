@@ -1,0 +1,55 @@
+{
+  "file_number": "260708",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8116801&GUID=F04328AF-2AD7-474E-B784-4ED643CCC395&Options=Advanced&Search=",
+  "name": "Administrative Code - Lower Haight Entertainment Zone",
+  "title": "Ordinance amending the Administrative Code to create the Lower Haight Entertainment Zone on Haight Street from Webster Street to Scott Street and on Fillmore Street from Waller Street to Oak Street; and affirming the Planning Department’s determination under the California Environmental Quality Act.",
+  "type": "Ordinance",
+  "status": "30 Day Rule",
+  "introduced": "6/16/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Rules Committee",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644370&GUID=9F5687BB-0CD0-4FBE-8300-74810B7DF54A"
+    },
+    {
+      "name": "Leg Dig Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644369&GUID=E4F6CD97-A39E-4DD8-A230-19CB8323F26B"
+    },
+    {
+      "name": "Referal FYI 062526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15654426&GUID=EC899F78-B36C-42AD-94D8-42C4425B44C2"
+    },
+    {
+      "name": "CEQA Referral 062526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15654430&GUID=9665ED86-A3B3-42A5-AC0C-0065EF2AB456"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/25/2026",
+      "body": "Clerk of the Board",
+      "action": "REFERRED TO DEPARTMENT",
+      "result": "",
+      "history_id": "37110436",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37110436&GUID=6A146A15-BFD6-4B5D-A719-2E4BB6E66955",
+      "votes": []
+    },
+    {
+      "date": "6/16/2026",
+      "body": "President",
+      "action": "ASSIGNED UNDER 30 DAY RULE",
+      "result": "",
+      "history_id": "37077512",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37077512&GUID=2CA2C8B1-DD82-4178-8F37-629A6A34F08F",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

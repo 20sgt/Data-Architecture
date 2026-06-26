@@ -1,7 +1,6 @@
 """Consolidated SF Legistar scraper (live site: sfgov.legistar.com).
 
-Replaces the separate spikes (scrape_votes_proof / check_status / enumerate_year + the inline
-PDF probe). Extracts everything the project's 4 use cases need:
+Extracts everything the project's 4 use cases need:
 
     enumerate_matters(start, end)  -> matters introduced in a date window (date-sliced search)
     find_matter_url(file_number)   -> resolve one file # to its LegislationDetail URL
@@ -10,23 +9,21 @@ PDF probe). Extracts everything the project's 4 use cases need:
                                       per-member roll-call votes (each action tagged with its
                                       history_id), and (optional) full statutory text
 
-Single-producer facts (DISCUSSION D4, reversed): this slice is the SOLE producer of
-fact_matter_action / fact_vote. Besides its File-Created date window it also scrapes every matter
-that appears on a scraped meeting agenda (the `--agenda-bronze` discovery feed), so its coverage is
-a superset of the meeting slice's — a bill created months ago but acted on this week is reached via
-the agenda even though the created-date window misses it. The agenda carries each matter's
-LegislationDetail URL directly, so these resolve with plain `requests` (no browser) and for ANY year.
-Each action carries its `history_id`, the exact key the transform uses to attach a fact to its meeting.
+Single-producer facts: this slice is the sole producer of fact_matter_action / fact_vote. Besides
+its File-Created date window it also scrapes every matter on a scraped meeting agenda (the
+`--agenda-bronze` discovery feed), so its coverage is a superset of the meeting slice's — a bill
+created months ago but acted on this week is still reached via the agenda. Each action carries its
+`history_id`, the exact key the transform uses to attach a fact to its meeting.
 
-Architecture (proven in spikes):
+Architecture:
   * Playwright drives ONLY the ASP.NET/Telerik postback search (enumeration + file-# lookup).
   * Everything else is plain `requests` + BeautifulSoup against GET-able detail pages.
   * Votes and every structured field are parsed DETERMINISTICALLY — never via an LLM. The LLM is
     reserved for summarizing `Matter.full_text` downstream (not in this module).
 
 CLI:
-    python legistar_scrape.py --file 260388 [--full-text]
-    python legistar_scrape.py --from 2026-05-01 --to 2026-05-14 [--full-text] [--out matters.json]
+    python legistar_scrape.py --file 260388 [--with-text]
+    python legistar_scrape.py --from 2026-05-01 --to 2026-05-14 [--with-text] [--out matters.json]
     python legistar_scrape.py --from 2026-06-11 --to 2026-06-25 \
         --agenda-bronze raw/meetings/ingest_date=2026-06-25 --raw-dir raw/matters/ingest_date=2026-06-25
 """
@@ -35,38 +32,34 @@ from __future__ import annotations
 
 import re
 import json
-import time
 import logging
 import argparse
 import dataclasses
-from io import BytesIO
 from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
-import requests
 from bs4 import BeautifulSoup
 
-# pypdf (extract_pdf_text) and playwright (collect) are imported LAZILY inside the only function that
-# uses each — mirroring the meeting slice — so this module imports with just requests + bs4. That
-# keeps `import scrape.legistar_scrape` working for the DAG-parse / tests without a browser installed.
-if TYPE_CHECKING:                      # `Page` is a type hint only; with `from __future__ import
-    from playwright.sync_api import Page   # annotations` above it is never needed at runtime.
+# playwright (collect) is imported LAZILY inside the only function that drives it, so this module
+# imports with just requests + bs4 — `import scrape.legistar_scrape` works without a browser.
+if TYPE_CHECKING:                      # `Page` is a type hint only; never needed at runtime.
+    from playwright.sync_api import Page
 
-try:                                   # `-m scrape.legistar_scrape`, the DAG import, and tests
-    from scrape.history_detail import Vote, fetch_history_detail
+try:                                   # `-m scrape.legistar_scrape`, the DAG import, and direct run
+    from scrape.history_detail import Vote, parse_history_detail
+    from scrape.fetch import BASE, UA, get, extract_pdf_text
 except ModuleNotFoundError as e:       # fall back ONLY when the `scrape` package isn't on the path
     if (e.name or "").split(".")[0] != "scrape":   # a real failure INSIDE the module must surface
         raise
-    from history_detail import Vote, fetch_history_detail   # `python scrape/legistar_scrape.py`
+    from history_detail import Vote, parse_history_detail   # `python scrape/legistar_scrape.py`
+    from fetch import BASE, UA, get, extract_pdf_text
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("legistar")
 
-BASE = "https://sfgov.legistar.com/"
-# Polite crawling: identify ourselves and rate-limit (no robots.txt exists, so it's on us).
-UA = "Mozilla/5.0 (research; MSDS683 student project; contact lynn.tong.14@gmail.com)"
-RATE_LIMIT_S = 1.0
+# CP carries a leading '#': it prefixes Playwright CSS selectors here, unlike the meeting slice's
+# bare id prefix used with BeautifulSoup find(id=...).
 CP = "#ctl00_ContentPlaceHolder1_"
 RESULT_CAP = 100  # search cap; weekly slices stay safely under it (SF ~30-100 files/week)
 
@@ -77,13 +70,9 @@ IN_WORKS = {"first reading", "in committee", "pending committee action", "new bu
             "scheduled for committee hearing", "30 day rule", "for immediate adoption",
             "special order", "assigned", "continued", "pending board action"}
 
-SESSION = requests.Session()
-SESSION.headers["User-Agent"] = UA
-
 
 # --------------------------------------------------------------------------- data model
-# `Vote` is imported from scrape.history_detail (the shared HistoryDetail parser) above — one Vote
-# shape across both slices (person_id + person_name + raw vote_value).
+# `Vote` is imported from scrape.history_detail (the roll-call parser module).
 @dataclasses.dataclass
 class Action:
     date: str
@@ -135,21 +124,7 @@ def bucket(status: str) -> str:
     return "other"
 
 
-# --------------------------------------------------------------------------- http helpers
-def _get(url: str) -> str:
-    time.sleep(RATE_LIMIT_S)
-    r = SESSION.get(url, timeout=30)
-    r.raise_for_status()
-    return r.text
-
-
-def _get_bytes(url: str) -> bytes:
-    time.sleep(RATE_LIMIT_S)
-    r = SESSION.get(url, timeout=60)
-    r.raise_for_status()
-    return r.content
-
-
+# --------------------------------------------------------------------------- parse helpers
 def _split_names(raw: str | None) -> list[str]:
     if not raw:
         return []
@@ -162,25 +137,13 @@ def _split_names(raw: str | None) -> list[str]:
 # Group 1 = the HistoryDetail URL; group 2 = the bare MatterHistory id (the cross-slice join key).
 _RADOPEN = re.compile(r"radopen\('(HistoryDetail\.aspx\?ID=(\d+)&GUID=[A-F0-9-]+)'", re.I)
 
-# Per-member roll-call parsing lives in scrape.history_detail.fetch_history_detail (shared with the
-# meeting slice). This replaced a local value-whitelist parser that silently dropped any literal
-# outside a fixed set and captured no PersonId; the shared parser detects rows structurally, keeps
-# unknown literals, and captures the PersonId.
-
-
-def extract_pdf_text(view_url: str) -> str | None:
-    """Download a View.ashx attachment and extract text if it's a PDF (full statutory text)."""
-    from pypdf import PdfReader            # lazy: only PDF extraction needs it
-    data = _get_bytes(view_url)
-    if data[:4] != b"%PDF":
-        return None
-    reader = PdfReader(BytesIO(data))
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+# Per-member roll-call parsing lives in scrape.history_detail.parse_history_detail (a pure parser;
+# this slice fetches the page and passes the HTML in).
 
 
 def scrape_matter(detail_url: str, with_text: bool = False) -> Matter:
     """Parse a LegislationDetail page into a full Matter (metadata + votes [+ full text])."""
-    soup = BeautifulSoup(_get(detail_url), "lxml")
+    soup = BeautifulSoup(get(detail_url), "lxml")
 
     def val(value_id: str) -> str | None:
         el = soup.find(id=f"ctl00_ContentPlaceHolder1_{value_id}")
@@ -196,7 +159,9 @@ def scrape_matter(detail_url: str, with_text: bool = False) -> Matter:
     # History grid -> actions; each action's HistoryDetail URL comes from its radopen() onclick.
     actions: list[Action] = []
     grid = soup.find(id="ctl00_ContentPlaceHolder1_gridLegislation_ctl00")
-    if grid:
+    if not grid:
+        log.warning("%s: no history grid found — control-id drift? emitted with 0 actions", detail_url)
+    else:
         for tr in grid.select("tr"):
             tds = tr.find_all("td")
             if len(tds) < 5:
@@ -205,7 +170,7 @@ def scrape_matter(detail_url: str, with_text: bool = False) -> Matter:
             m = _RADOPEN.search(" ".join(a.get("onclick", "") for a in tr.find_all("a")))
             hist_url = BASE + m.group(1) if m else None
             hist_id = m.group(2) if m else None
-            votes = fetch_history_detail(hist_url, _get).votes if hist_url else []
+            votes = parse_history_detail(get(hist_url)).votes if hist_url else []
             actions.append(Action(cells[0], cells[2], cells[3], cells[4], hist_id, hist_url, votes))
 
     full_text = None
@@ -249,7 +214,9 @@ def find_matter_url(file_number: str, page: Page) -> str:
     page.wait_for_load_state("networkidle", timeout=60_000)
     grid = CP + "gridMain_ctl00"
     headers = [h.inner_text().strip() for h in page.query_selector_all(f"{grid} th")]
-    file_idx = next((i for i, h in enumerate(headers) if "File" in h), 0)
+    file_idx = next((i for i, h in enumerate(headers) if "File" in h), None)
+    if file_idx is None:
+        raise LookupError(f"File# column not in search grid headers {headers} (layout change?)")
     for tr in page.query_selector_all(f"{grid} tr"):
         cells = [td.inner_text().replace("\xa0", " ").strip() for td in tr.query_selector_all("td")]
         if len(cells) == len(headers) and cells[file_idx] == file_number:
@@ -286,6 +253,9 @@ def enumerate_matters(start: date, end: date, page: Page) -> list[str]:
         f"{CP}gridMain_ctl00 a",
         "els => els.map(a => a.getAttribute('href'))"
         ".filter(h => h && h.includes('LegislationDetail.aspx'))")
+    if len(urls) >= RESULT_CAP:
+        log.warning("slice %s..%s returned >= %d rows — likely truncated; narrow the window",
+                    start, end, RESULT_CAP)
     return [BASE + h.replace("&amp;", "&") for h in dict.fromkeys(urls)]
 
 
@@ -298,13 +268,9 @@ def _weekly(start: date, end: date):
 
 
 def read_agenda_matter_urls(bronze_dir: Path) -> list[str]:
-    """Distinct LegislationDetail URLs for every matter on a scraped meeting agenda.
-
-    The Option-2 discovery feed. The agenda's File# cell links straight to the matter's
-    LegislationDetail page, so the meeting scraper captures that URL (AgendaItem.matter_url) and this
-    slice scrapes it DIRECTLY — no per-file browser search, and it resolves matters from ANY year (a
-    2025 bill still on a 2026 agenda works, which a year-scoped ID search does not). Order-preserving
-    + de-duplicated.
+    """Distinct LegislationDetail URLs for every matter on a scraped meeting agenda (the discovery
+    feed), order-preserving and de-duplicated. Read straight from AgendaItem.matter_url — no per-file
+    browser search, and it resolves matters from any year.
     """
     urls: list[str] = []
     seen: set[str] = set()
@@ -329,8 +295,15 @@ def read_agenda_matter_urls(bronze_dir: Path) -> list[str]:
     return urls
 
 
+def _write_matter(m: Matter, out_dir: Path) -> None:
+    """Write one matter's raw bronze JSON (pure dataclass — no derived fields; silver computes those)."""
+    if m.file_number:
+        (out_dir / f"{m.file_number}.json").write_text(
+            json.dumps(dataclasses.asdict(m), indent=2, ensure_ascii=False))
+
+
 def collect(file_number=None, start=None, end=None, with_text=False,
-            agenda_urls=None) -> list[Matter]:
+            agenda_urls=None, out_dir=None) -> list[Matter]:
     # Agenda matters are LegislationDetail URLs straight from the meeting bronze -> scraped with plain
     # requests, NO browser. Only the file-# lookup and the date-window enumeration drive Playwright.
     urls: list[str] = [] if file_number else list(agenda_urls or [])
@@ -347,15 +320,31 @@ def collect(file_number=None, start=None, end=None, with_text=False,
                     log.info("slice %s..%s -> %d matters", ws, we, len(slice_urls))
                     urls += slice_urls
             browser.close()
-    urls = list(dict.fromkeys(urls))
+    # De-dup by matter id: the same matter can arrive via BOTH the agenda feed and the date-window
+    # enumeration with different query params — same ID= means the same matter, so scrape it once.
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for u in urls:
+        mid = re.search(r"[?&]ID=(\d+)", u)
+        key = mid.group(1) if mid else u
+        if key not in seen:
+            seen.add(key)
+            deduped.append(u)
+    urls = deduped
 
     matters: list[Matter] = []
     for i, url in enumerate(urls, 1):
-        m = scrape_matter(url, with_text=with_text)
+        try:                                                         # one bad matter never aborts the batch
+            m = scrape_matter(url, with_text=with_text)
+        except Exception as e:                                       # noqa: BLE001
+            log.warning("[%d/%d] FAILED %s: %s — skipping", i, len(urls), url, e)
+            continue
         log.info("[%d/%d] %s | %-26s | %-8s | %d actions | votes:%d",
                  i, len(urls), m.file_number, (m.status or "")[:26], m.lifecycle,
                  len(m.actions), sum(len(a.votes) for a in m.actions))
         matters.append(m)
+        if out_dir is not None:           # incremental write: a late failure keeps already-scraped matters
+            _write_matter(m, out_dir)
     return matters
 
 
@@ -364,7 +353,7 @@ def main() -> None:
     ap.add_argument("--file", help="single file number, e.g. 260388")
     ap.add_argument("--from", dest="start", help="introduced-date start YYYY-MM-DD")
     ap.add_argument("--to", dest="end", help="introduced-date end YYYY-MM-DD")
-    ap.add_argument("--full-text", action="store_true", help="download + extract Leg Ver PDFs")
+    ap.add_argument("--with-text", action="store_true", help="download + extract Leg Ver PDFs")
     ap.add_argument("--out", help="write results as JSON array to this path")
     ap.add_argument("--raw-dir", dest="raw_dir",
                     help="write one JSON file per matter to this directory (raw landing zone)")
@@ -373,6 +362,11 @@ def main() -> None:
                          "are ALSO scraped — the Option-2 discovery feed (run the meeting scraper first)")
     args = ap.parse_args()
 
+    out_dir = None
+    if args.raw_dir:
+        out_dir = Path(args.raw_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
     agenda_urls = None
     if args.agenda_bronze:
         agenda_urls = read_agenda_matter_urls(Path(args.agenda_bronze))
@@ -380,34 +374,24 @@ def main() -> None:
                  len(agenda_urls), args.agenda_bronze)
 
     if args.file:
-        matters = collect(file_number=args.file, with_text=args.full_text)
+        matters = collect(file_number=args.file, with_text=args.with_text, out_dir=out_dir)
     elif (args.start and args.end) or args.agenda_bronze:
         s = datetime.strptime(args.start, "%Y-%m-%d").date() if args.start else None
         e = datetime.strptime(args.end, "%Y-%m-%d").date() if args.end else None
-        matters = collect(start=s, end=e, with_text=args.full_text, agenda_urls=agenda_urls)
+        matters = collect(start=s, end=e, with_text=args.with_text,
+                          agenda_urls=agenda_urls, out_dir=out_dir)
     else:
         ap.error("provide --file, OR --from/--to, OR --agenda-bronze")
 
-    if args.raw_dir:
-        out_dir = Path(args.raw_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        written = 0
-        for m in matters:
-            if not m.file_number:
-                continue
-            path = out_dir / f"{m.file_number}.json"
-            path.write_text(
-                json.dumps({**dataclasses.asdict(m), "lifecycle": m.lifecycle},
-                           indent=2, ensure_ascii=False)
-            )
-            written += 1
-        log.info("wrote %d matter files -> %s", written, args.raw_dir)
+    if args.raw_dir:                      # bronze already written incrementally inside collect()
+        log.info("wrote %d matter files -> %s",
+                 sum(1 for m in matters if m.file_number), args.raw_dir)
     elif args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump([dataclasses.asdict(m) for m in matters], f, indent=2)
         log.info("wrote %d matters -> %s", len(matters), args.out)
     else:
-        for m in matters:
+        for m in matters:                 # stdout: human debug view (truncated text + derived lifecycle)
             d = dataclasses.asdict(m)
             d["full_text"] = f"<{len(m.full_text)} chars>" if m.full_text else None
             d["lifecycle"] = m.lifecycle

@@ -13,26 +13,3 @@ Documentation/Slides links are not accessible publicly. Must be logged in with a
 ## Architecture
 
 - [ERD](https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships)
-
-## Pipelines
-
-Medallion ELT (bronze raw scrape → silver staging → gold star schema), split into two scrape efforts
-that share the gold layer. On the `integration` branch both run into **one** warehouse with a unified
-gold builder and joint fact merge — see [`docs/integration.md`](docs/integration.md) (one-command run:
-`python warehouse/run_local.py`).
-
-- **scrape-by-meeting** — `Calendar.aspx → MeetingDetail.aspx → HistoryDetail.aspx`. Builds
-  `dim_meeting`, meeting documents, and (at the cross-slice merge) the per-meeting facts. See
-  [`docs/meeting_pipeline_design.md`](docs/meeting_pipeline_design.md). Code: [`scrape/legistar_meetings.py`](scrape/legistar_meetings.py),
-  [`warehouse/`](warehouse). Quick start:
-  ```bash
-  pip install -r requirements.txt
-  python -m scrape.legistar_meetings --current-month --raw-dir raw/meetings
-  python warehouse/run_local.py --meeting-raw raw/meetings/ingest_date=$(date +%F) --date $(date +%F)
-  python warehouse/smoke_test_meetings.py   # offline end-to-end check
-  ```
-- **scrape-by-legislation** — legislation search → `LegislationDetail.aspx`. Builds `dim_matter`,
-  sponsors/subjects/matter docs. See [`docs/pipeline_design.md`](docs/pipeline_design.md).
-
-The shared raw-label → `dim_action_type` mapping ([`scrape/action_types.py`](scrape/action_types.py))
-is the cross-slice contract both scrapers import so the fact dedup keys stay consistent.

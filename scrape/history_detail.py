@@ -1,41 +1,21 @@
-"""Shared HistoryDetail page parser — the SINGLE roll-call/action parser for BOTH slices.
+"""HistoryDetail page parser — the per-member roll-call parser for the legislation slice.
 
-A Legistar `HistoryDetail.aspx` page is reached identically from both crawl paths (the meeting
-slice via a gridMain agenda row's `radopen()` link; the legislation slice via a LegislationDetail
-history-grid `radopen()` link), and both slices need the SAME thing from it: the action label /
-result / motion text and the per-member roll-call. Before this module each slice had its own
-parser and they had drifted:
-
-  * the meeting parser detected vote rows STRUCTURALLY (a PersonDetail link in the row), captured
-    the PersonId, used the LAST cell as the vote value, and warned-but-KEPT unrecognized literals;
-  * the legislation parser used a value WHITELIST (`tds[1] in (...)`), so it silently DROPPED any
-    literal outside that set, captured no PersonId, and scanned every `<table>` on the page.
-
-This module keeps the meeting (structural) behavior as the single source of truth, so the
-legislation slice now gets real PersonIds for free and can never silently drop a vote. Companion to
-`scrape/action_types.py`: that module is the one label->code / vote-normalization authority, this
-one is the one HistoryDetail parser.
-
-Normalization deliberately does NOT happen here. The raw action label and raw vote literal are
-ALWAYS preserved verbatim; canonicalization to `action_type_code` / `vote_value` is the transform's
-job (via `scrape/action_types.py`), so there is exactly one normalization authority and the raw
-value stays recoverable in bronze.
+A Legistar `HistoryDetail.aspx` page is reached from the legislation crawl via a `radopen()` link
+and provides the per-member roll-call. Vote rows are detected STRUCTURALLY (a PersonDetail link),
+which captures the real PersonId and never silently drops an unrecognized literal. Pure (no network):
+the caller fetches the page and passes the HTML in.
 """
 
 from __future__ import annotations
 
 import re
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import NamedTuple
 
 from bs4 import BeautifulSoup
 
 log = logging.getLogger("legistar-history")
-
-# ASP.NET control-id prefix on the value labels (lblAction / lblResult / lblActionText).
-CP = "ctl00_ContentPlaceHolder1_"
 
 # Roll-call literals confirmed/expected on the HistoryDetail gridVote (Aye/Excused confirmed live;
 # the rest expected). Used ONLY to (a) flag a novel literal for review and (b) recognise a vote row
@@ -49,10 +29,9 @@ _PERSON_ID = re.compile(r"[?&]ID=(\d+)", re.I)
 
 @dataclass
 class Vote:
-    """One per-member roll-call vote. This is the bronze JSON shape shared by BOTH slices.
+    """One per-member roll-call vote — the bronze JSON shape the legislation slice emits.
 
-    `vote_value` is the RAW site literal (e.g. "No"); `normalize_vote()` ("No" -> "Nay") runs in the
-    transform, so the raw literal stays recoverable downstream.
+    `vote_value` is the RAW site literal (e.g. "No")
     """
     person_id: str | None        # PersonId from PersonDetail.aspx?ID= (robust join key; None if absent)
     person_name: str
@@ -60,12 +39,7 @@ class Vote:
 
 
 class ParsedHistory(NamedTuple):
-    """A parsed HistoryDetail page. A NamedTuple so the existing
-    `action, result, action_text, votes = parse_history_detail(...)` unpacking keeps working, while
-    callers that only want the roll-call can read `.votes`."""
-    action_raw: str | None
-    action_result: str | None
-    action_text: str | None
+    """A parsed HistoryDetail page. Callers read `.votes` (the per-member roll-call)."""
     votes: list[Vote]
 
 
@@ -76,14 +50,8 @@ def _txt(el) -> str | None:
     return t or None
 
 
-def _lbl(soup: BeautifulSoup, name: str) -> str | None:
-    """Text of the value label ctl00_ContentPlaceHolder1_<name> (suffix match tolerant)."""
-    el = soup.find(id=f"{CP}{name}") or soup.find(id=re.compile(rf"{name}$"))
-    return _txt(el)
-
-
 def parse_history_detail(html: str) -> ParsedHistory:
-    """Parse a HistoryDetail page -> (action_raw, action_result, action_text, votes). Pure (no network).
+    """Parse the per-member roll-call from a HistoryDetail page. Pure (no network).
 
     A vote row is detected STRUCTURALLY: a PersonDetail link in the first cell (every real roll-call
     row has one) — or, as a fallback for a row with no link, a KNOWN literal in the value cell. The
@@ -92,10 +60,6 @@ def parse_history_detail(html: str) -> ParsedHistory:
     column (e.g. a district) never displaces it.
     """
     soup = BeautifulSoup(html, "lxml")
-    action = _lbl(soup, "lblAction")
-    result = _lbl(soup, "lblResult")
-    action_text = _lbl(soup, "lblActionText")
-
     votes: list[Vote] = []
     grid = soup.select_one("table.rgMasterTable")
     if grid:
@@ -122,15 +86,4 @@ def parse_history_detail(html: str) -> ParsedHistory:
                 person_name=person or "",
                 vote_value=value,            # raw literal; normalized (No->Nay) in the transform
             ))
-    return ParsedHistory(action, result, action_text, votes)
-
-
-def fetch_history_detail(url: str, get: Callable[[str], str]) -> ParsedHistory:
-    """Fetch `url` with the caller's HTTP getter, then parse it.
-
-    Used by the legislation slice (legistar_scrape.scrape_matter), which passes its own `_get`. The
-    getter is INJECTED so that slice's fetch policy (session, rate-limit, retries) stays in the
-    scraper and this module holds no HTTP policy — which also makes it trivially unit-testable with a
-    fake getter. (The meeting slice fetches separately and calls `parse_history_detail` directly.)
-    """
-    return parse_history_detail(get(url))
+    return ParsedHistory(votes)
