@@ -1,7 +1,7 @@
 # Test fixtures — verbatim SF Legistar captures
 
-Saved 2026-06-21 from live `sfgov.legistar.com` to let `warehouse/smoke_test_meetings.py`
-parse real HTML offline (no network in CI). Do not edit — they are ground truth.
+Saved 2026-06-21 from live `sfgov.legistar.com` to let the pure parsers in
+`scrape/legistar_meetings.py` and `scrape/history_detail.py` parse real HTML offline (no network in CI). Do not edit — they are ground truth.
 
 | File | Page | Why it's here |
 |---|---|---|
