@@ -20,6 +20,7 @@ BASE = "https://sfgov.legistar.com/"
 UA = "Mozilla/5.0 (research; Data-Architecture project)"
 RETRY_STATUS = {429, 500, 502, 503, 504}   # transient — retry; permanent 4xx (e.g. 410) raise at once
 MAX_RETRIES = 3
+RATE_LIMIT_S = 1
 
 SESSION = requests.Session()
 SESSION.headers["User-Agent"] = UA
