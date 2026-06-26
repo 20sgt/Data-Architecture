@@ -7,3 +7,6 @@ playwright>=1.40        # only needed for calendar/legislation postback enumerat
 
 # Warehouse (local dev)
 duckdb>=1.0
+
+# Tests (offline parser golden tests — no browser needed)
+pytest>=8.0
