@@ -45,7 +45,7 @@ def _request(url: str, timeout: int) -> requests.Response:
             last = e
             if attempt < MAX_RETRIES:
                 log.warning("transient fetch error (%s) on %s — retry %d/%d",
-                            e, url, attempt, MAX_RETRIES - 1)
+                            e, url, attempt + 1, MAX_RETRIES)
                 time.sleep(RATE_LIMIT_S * 2 * attempt)
     raise last  # type: ignore[misc]
 
