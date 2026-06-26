@@ -1,0 +1,125 @@
+{
+  "file_number": "260607",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060309&GUID=BA103F7F-0115-4C8E-8BFB-062F1F6F1CFB&Options=&Search=",
+  "name": "Resolution Adjusting the Access Line Tax with the Consumer Price Index of 2026",
+  "title": "Resolution concurring with the Controller's establishment of the Consumer Price Index for 2026, and adjusting the Access Line Tax by the same rate.",
+  "type": "Resolution",
+  "status": "New Business",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Appropriations Committee",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558092&GUID=3C9255DF-9630-4DC8-B08A-5EFE991C041E"
+    },
+    {
+      "name": "CON Memo 051226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558093&GUID=20F2172A-9959-4EED-AA44-10DFE0A55E9E"
+    },
+    {
+      "name": "MYR Memo 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558094&GUID=44962B36-857D-4329-A538-B504C3D808A6"
+    },
+    {
+      "name": "MYR Transmittal Ltr and Trailing Leg 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558197&GUID=1A8420E7-5702-4D42-8383-EB0DA770E7DC"
+    },
+    {
+      "name": "Cmte Pkt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583804&GUID=AE4784D5-0C45-4B46-A63F-5D64655CF93E"
+    },
+    {
+      "name": "Cmte Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583834&GUID=69B66CB2-DE38-4F97-8267-1905FD8BEAAA"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/24/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/22/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36956794",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36956794&GUID=2C7181F9-6046-4914-8F1F-9BE5A2452D93",
+      "votes": []
+    },
+    {
+      "date": "6/18/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36955049",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36955049&GUID=B88B3945-890F-4013-A9B4-296D41A14956",
+      "votes": []
+    },
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36954347",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954347&GUID=97B57574-0C71-4471-9CFA-FA55FB1D50B4",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "ASSIGNED",
+      "result": "",
+      "history_id": "36939578",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939578&GUID=2A5E4E6B-72F3-4DEF-8032-CD6716747FB8",
+      "votes": []
+    },
+    {
+      "date": "6/1/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36939577",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939577&GUID=76FF0899-C70A-4C7A-BBF3-2B2B9C63096C",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

@@ -1,0 +1,573 @@
+{
+  "file_number": "260596",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060298&GUID=BE438692-C8D2-45AF-9B5A-1C8FF488A48E&Options=&Search=",
+  "name": "Budget and Appropriation Ordinance for Departments - FYs 2026-2027 and 2027-2028",
+  "title": "Budget and Appropriation Ordinance appropriating all estimated receipts and all estimated expenditures for Departments of the City and County of San Francisco as of May 30, 2026, for the Fiscal Years (FYs) ending June 30, 2027, and June 30, 2028.",
+  "type": "Ordinance",
+  "status": "Pending Committee Action",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Appropriations Committee",
+  "sponsors": [],
+  "related_files": [
+    "260597",
+    "260616"
+  ],
+  "attachments": [
+    {
+      "name": "MYR Prop AAO FYs 2027 and 2028",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557948&GUID=7C5CB95E-71CA-4060-8192-29353E716A65"
+    },
+    {
+      "name": "MYR Prop Budget Book FYs 2027 and 2028",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557949&GUID=518E5870-DB6E-4DA2-A9F0-51BCADBFE197"
+    },
+    {
+      "name": "AAO Administrative Provisions FY27 & FY28",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557950&GUID=F5B54357-3135-41A3-B60A-38AD32785F31"
+    },
+    {
+      "name": "AAO Administrative Provisions FYs 2027 and 2028",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557951&GUID=C4BC4C2F-9EDF-44DB-9567-6EB4B4904D02"
+    },
+    {
+      "name": "MYR Transmittal and Trailing Leg Ltr 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558041&GUID=9459FF78-4A31-434F-B0C9-CAD61AAECCFB"
+    },
+    {
+      "name": "MYR Interim Except Ltr 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557952&GUID=A69BAFE7-5E23-467C-8D83-C0BBABF11098"
+    },
+    {
+      "name": "MYR MCO Ltr 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557953&GUID=A3346FDE-D6F1-44A4-8D53-946C0FB3CC71"
+    },
+    {
+      "name": "MYR Transf of Function Ltr 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557954&GUID=CC917398-FDC0-4D67-A73E-C82A7E133466"
+    },
+    {
+      "name": "MYR Tech Adj Ltr 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557955&GUID=AAB0A384-C6BC-4FA6-AAF7-27A7D0FCFAA0"
+    },
+    {
+      "name": "MYR 30-day Waiver Req 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557956&GUID=38E2FF24-F413-4AF9-8E90-A62F167EEB87"
+    },
+    {
+      "name": "PAM 30 Day Waiver 060426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558061&GUID=599F49D3-E18A-4ADD-94E1-297B4B40B028"
+    },
+    {
+      "name": "Cmte Pkt 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561638&GUID=D4DE88DC-C55F-45D7-AAE6-A69D9FE6B62B"
+    },
+    {
+      "name": "MBO Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15570382&GUID=0DF15CF3-BBDB-4D22-A322-0976FA015565"
+    },
+    {
+      "name": "ASR Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567312&GUID=F68FF70B-29E3-4976-B674-50549035EFB6"
+    },
+    {
+      "name": "TTX Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568941&GUID=0947C59F-AD71-4C0D-A5EC-5C4A81E7A186"
+    },
+    {
+      "name": "TTX Org Chart-Position List",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568942&GUID=EE5F58B0-3FD8-410C-B9B7-33900B1FC3FF"
+    },
+    {
+      "name": "TIS Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15565386&GUID=1D71D900-FB8D-432F-BA9B-54C2A81C538D"
+    },
+    {
+      "name": "ADM Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561867&GUID=ABE29726-C974-42FB-A918-701935A48379"
+    },
+    {
+      "name": "HSS Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561856&GUID=64178480-EAAB-4ED0-93FC-D6453A33D9BD"
+    },
+    {
+      "name": "CSC Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567313&GUID=4DAF0B45-6016-43E7-B0FB-8B5DF59FC14C"
+    },
+    {
+      "name": "DHR Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567314&GUID=8C88FC6E-9FFB-485C-AD4A-4A1CE88A9059"
+    },
+    {
+      "name": "REG Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568943&GUID=E2AA9512-86BF-465D-A976-70CAB035EA6A"
+    },
+    {
+      "name": "GEN Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567315&GUID=7DF454AE-A55E-4388-9CA9-832923FD3E75"
+    },
+    {
+      "name": "CON Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15565395&GUID=8770ED89-9535-40B3-A373-72182E7A65D2"
+    },
+    {
+      "name": "HSA Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567316&GUID=C50F714E-F8E7-4DB6-AC88-A159F11460B3"
+    },
+    {
+      "name": "HSA Org Chart-Reduction List-Position Info",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567317&GUID=23F68EB4-44E0-496D-96B4-B599C68498EA"
+    },
+    {
+      "name": "ETH Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568944&GUID=1E0417D9-9BE1-4BF4-A3D0-B677EDFAC246"
+    },
+    {
+      "name": "PW Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568948&GUID=395AC72F-1A3A-4B92-B656-2F2EA98EF4E0"
+    },
+    {
+      "name": "BOS Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15569026&GUID=CB276A55-5814-400F-9AAD-38FAA2585FA9"
+    },
+    {
+      "name": "Cmte Pkt 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561654&GUID=3351D134-7CDB-4ECE-A2F4-70B709484884"
+    },
+    {
+      "name": "REC Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573367&GUID=CF7022AE-DEE9-4916-8903-E343FE96F75C"
+    },
+    {
+      "name": "AAM Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573383&GUID=539C5CB5-8EB0-4615-82F4-D6D424D18B88"
+    },
+    {
+      "name": "FAM Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15569006&GUID=EAB682DE-6ABE-4BB2-8BAB-5F4E518E77CB"
+    },
+    {
+      "name": "SCI Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573397&GUID=27F3A487-CD18-4DFD-B90D-B330E00B4D68"
+    },
+    {
+      "name": "ART Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573384&GUID=84055F34-503A-4BFA-99E9-6FA63507B654"
+    },
+    {
+      "name": "ART Org Chart-Proposed Cuts",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573385&GUID=BC98F7A7-F392-4DC6-842A-446CACCA2856"
+    },
+    {
+      "name": "WAR Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15576200&GUID=92337402-F3F2-4A8D-A3DB-C90CEA5F9C3D"
+    },
+    {
+      "name": "DEC Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15569007&GUID=EEE92B40-2AFD-4407-ABD8-6449E5197672"
+    },
+    {
+      "name": "HSH Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15565371&GUID=B476CC29-5F4B-4747-A8C0-6A091F4D8B05"
+    },
+    {
+      "name": "HSH Org Chart",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567627&GUID=F3F26E64-D1B9-4691-87DF-6D3A7CC1CEC6"
+    },
+    {
+      "name": "DPH Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561849&GUID=C614BA2E-419A-47D4-BEEC-1DBD4B42E9F7"
+    },
+    {
+      "name": "MOHCD-MYR Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15574764&GUID=72CF9D03-71A7-4121-A677-6212BD31F08A"
+    },
+    {
+      "name": "MOHCD Org Chart-Net Cuts",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15574765&GUID=585E09D4-6CE5-41F8-ADF6-A9C09E34790A"
+    },
+    {
+      "name": "AHR Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573387&GUID=ACA624A3-31EF-427B-99D5-316959682CFB"
+    },
+    {
+      "name": "AHR Org Chart-Staffing Memo",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573388&GUID=76C3E19E-1516-4DFF-AE03-868EA6C58569"
+    },
+    {
+      "name": "DCYF Presentation-CutList 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561809&GUID=4B08962A-2539-4CEB-92B7-DFDEDCF4248C"
+    },
+    {
+      "name": "OEWD Presentation 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15574766&GUID=9260F702-475C-4AE9-A2BC-F93643DABDB6"
+    },
+    {
+      "name": "OEWD Org Charts",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15574799&GUID=4B06E512-2028-4A6A-863C-C8B6AF170B1D"
+    },
+    {
+      "name": "Cmte Pkt 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561680&GUID=84AFC2EC-475E-465D-BC9E-2BA9C4F660A4"
+    },
+    {
+      "name": "CAT Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578957&GUID=028292A1-1D83-4C8C-9D95-02B89628303B"
+    },
+    {
+      "name": "CRT Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568933&GUID=E33ECA02-F887-4C16-A042-3A6936338871"
+    },
+    {
+      "name": "JUV Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578958&GUID=D5C4F5B5-5132-4A3F-807A-6F2C73375BF3"
+    },
+    {
+      "name": "ADP Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573446&GUID=81F90D43-2B87-4BF1-BA3F-8B40A84D14C9"
+    },
+    {
+      "name": "PDR Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578959&GUID=C652B629-C218-43CC-AC1C-47B9903928D6"
+    },
+    {
+      "name": "FIR Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573447&GUID=A8D85EF4-81AB-4FF7-B359-26505A2D3965"
+    },
+    {
+      "name": "SHF Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578960&GUID=122E4B18-54AC-42BF-B865-1E4D8CD7054D"
+    },
+    {
+      "name": "SHF Suppl Info to Org Chart",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578963&GUID=62749894-09ED-44FA-B673-77DAF412E628"
+    },
+    {
+      "name": "DPA Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573448&GUID=25D29919-0045-48DD-8008-7FF939DC9B64"
+    },
+    {
+      "name": "SDA Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573449&GUID=D8FD11D4-31AC-4D37-9B97-C5B60526DC0D"
+    },
+    {
+      "name": "DAT Presentation 061226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15573450&GUID=7AB91F92-47F8-4E4F-82C2-838848F90118"
+    },
+    {
+      "name": "POL Presentation 061225",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578964&GUID=5B7EABB2-A435-40D2-AE32-1D2D18225FA1"
+    },
+    {
+      "name": "POL Position List Supplement",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578969&GUID=867947B5-321E-4948-82D4-202B9681FBAA"
+    },
+    {
+      "name": "MYR Rnd 1 Technical Adj Ltr - NonPositions-Postions 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15576451&GUID=B38FD8C9-328C-48A6-92CC-F169AFD3140F"
+    },
+    {
+      "name": "Cmte Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583822&GUID=3F422963-9366-405F-9307-76930ADBEF60"
+    },
+    {
+      "name": "BLA Descriptions for Dpts 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15608289&GUID=AF22BC4B-038F-47E0-B621-7E24EF1D9849"
+    },
+    {
+      "name": "TTX BLA Response Ltr 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15613399&GUID=15E9B0F9-28AA-483B-A888-EB2BAB4A1577"
+    },
+    {
+      "name": "PW Response Presentation 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15613400&GUID=312D10B2-E544-43F8-8AF4-69EFE191E749"
+    },
+    {
+      "name": "MYR Rnd 2 Technical Adj Ltr - NonPositions-Postions 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15613401&GUID=F921B8BF-D7F9-4478-80FF-126F45ACE0E5"
+    },
+    {
+      "name": "POL FY27 Sworn-Civilian Proj",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644522&GUID=DA226EBD-2577-444D-938C-8CDFA1BA4472"
+    },
+    {
+      "name": "HSH Budget Memo 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644521&GUID=D44D439D-DCDC-4572-9099-D2AC4591596F"
+    },
+    {
+      "name": "HSH Budget Presentation 062226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644520&GUID=D15C29A7-4DB3-4EC1-8529-7391F3D63158"
+    },
+    {
+      "name": "BLA Descriptions for Dpts 062226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644513&GUID=6C1A12C0-BE84-4DE3-BA68-8F70EB4201AB"
+    },
+    {
+      "name": "Cmte Pkt 062226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15614189&GUID=E13018B1-DB27-4614-8038-3D163F73ADB2"
+    },
+    {
+      "name": "Cmte Pkt 062426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15614254&GUID=92EE3182-6E51-450B-8C6B-FEDEDC5691F9"
+    },
+    {
+      "name": "Cmte Pkt 062526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644526&GUID=847B1CBC-F8E3-476E-B50B-7672E1951A2A"
+    },
+    {
+      "name": "DPH Response Presentation 062226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15648982&GUID=B9D075DC-B860-4799-A921-D056F4876F93"
+    },
+    {
+      "name": "HSA Mgr Info 062226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15648983&GUID=0EFBC565-49CE-446F-A82F-F80CC22EAC64"
+    },
+    {
+      "name": "SHF Response Presentation 062226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15648984&GUID=F83C0E62-4E1F-484A-851E-E7277ACC4A0C"
+    },
+    {
+      "name": "BLA Rpt - Cost Staffing SDA 062426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15652252&GUID=811A72B9-FD94-4E38-8A80-1FFD5C255AA4"
+    },
+    {
+      "name": "AAO Admin Provisions 062426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15654381&GUID=1F81F34D-658D-4C28-9E54-60A30A9D71B0"
+    },
+    {
+      "name": "AAO Admin Provisions-3 062526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15654382&GUID=EB088F6F-19E7-468B-A518-367E15792C32"
+    },
+    {
+      "name": "Public Correspondence",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15562057&GUID=B47A5434-8B90-4241-BF72-309805571DAE"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/25/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/24/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/22/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "MEETING RECESSED",
+      "result": "Pass",
+      "history_id": "36956783",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36956783&GUID=97E02F50-241E-4586-9045-40F3F8DC8BC2",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/18/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "MEETING RECESSED",
+      "result": "Pass",
+      "history_id": "36955250",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36955250&GUID=05E268D5-7386-42D1-862E-BFB5A08C1649",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/12/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "CONTINUED",
+      "result": "Pass",
+      "history_id": "36883825",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36883825&GUID=6C31EF93-D90D-420E-9240-F13B38DFDB4F",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/11/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "CONTINUED",
+      "result": "Pass",
+      "history_id": "36883772",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36883772&GUID=16F2A022-2F2B-4AB9-9C59-8704E791C80F",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Absent"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/10/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "CONTINUED",
+      "result": "Pass",
+      "history_id": "36883744",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36883744&GUID=15B4DF37-5949-4844-8910-E0BFFE208532",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Excused"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "ASSIGNED",
+      "result": "",
+      "history_id": "36939562",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939562&GUID=48DE658B-54B1-4959-A9C0-4E2BDFEE8204",
+      "votes": []
+    },
+    {
+      "date": "6/1/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36939561",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939561&GUID=0E1598E4-B749-4B52-B3FA-E1DB46DF8AD3",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

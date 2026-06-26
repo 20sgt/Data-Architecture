@@ -1,1 +1,9 @@
+# Scrapers (meeting + legislation slices)
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.0
+pypdf>=4.0
+playwright>=1.40        # only needed for calendar/legislation postback enumeration; run `playwright install chromium`
+
+# Warehouse (local dev)
 duckdb>=1.0

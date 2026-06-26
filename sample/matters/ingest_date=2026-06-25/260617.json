@@ -1,0 +1,125 @@
+{
+  "file_number": "260617",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060318&GUID=EBDEF4EA-0290-4BD4-94B7-FBE25482FBAF&Options=&Search=",
+  "name": "Hearing - Administrative Provisions - Contained in the Proposed Appropriation Ordinance for Departments - FYs 2026-2027 and 2027-2028",
+  "title": "Hearing on the Administrative Provisions contained in the proposed Appropriation Ordinance appropriating all estimated receipts and all estimated expenditures for Departments of the City and County of San Francisco as of June 1, 2026, for the Fiscal Years (FYs) ending June 30, 2027, and June 30, 2028.",
+  "type": "Hearing",
+  "status": "Filed",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": "6/17/2026",
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Appropriations Committee",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "AAO Administrative Provisions FY27 & FY28 Track Changes",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15589398&GUID=3BB9CDDA-B56F-4CD4-9BBB-947FD2A0A49D"
+    },
+    {
+      "name": "MYR Transmittal Ltr and Trailing Leg 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558052&GUID=FF1124E2-2127-4D70-B7EB-F73AB514BC05"
+    },
+    {
+      "name": "BLA Rpt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583800&GUID=7C7A541C-82E6-40A9-8A07-6F5D5D0227B4"
+    },
+    {
+      "name": "Cmte Pkt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583802&GUID=6734E238-E1F5-4CB5-8465-6E3D5141A081"
+    },
+    {
+      "name": "BLA Rpt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583830&GUID=06750242-8B31-412D-8015-43CD213FDAFC"
+    },
+    {
+      "name": "Cmte Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583831&GUID=9651177F-354A-4201-AFA7-D13D6BB8C00B"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/24/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/22/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36956791",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36956791&GUID=6B17B953-5429-408E-8C8C-862738737A90",
+      "votes": []
+    },
+    {
+      "date": "6/18/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36955046",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36955046&GUID=D0DA5BDA-529B-42E5-BF32-47D0CDEAA893",
+      "votes": []
+    },
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "HEARD AND FILED",
+      "result": "Pass",
+      "history_id": "36954353",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954353&GUID=79FAA324-5CC6-4856-A7DF-A472F46454C9",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36939588",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939588&GUID=77F89254-89F5-45E6-BCAE-8CA23297642E",
+      "votes": []
+    },
+    {
+      "date": "6/1/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36939587",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939587&GUID=1CC0CAA2-3FCF-4D19-97DF-82BD7A1A1DEA",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

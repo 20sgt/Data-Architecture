@@ -1,0 +1,180 @@
+{
+  "file_number": "260688",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8069924&GUID=41179042-1F3C-4CA2-8CAE-F4B1ED399D0C&Options=&Search=",
+  "name": "Supporting California Assembly Concurrent Resolution 123, Duanwu Jie - Dragon Boat Festival Day - June 19, 2026",
+  "title": "Resolution recognizing the Dragon Boat Festival’s role in strengthening community and generational bonds through cultural celebration; supporting Assembly Concurrent Resolution (ACR) 123, introduced by Assembly Member Phillip Chen, recognizing June 19, 2026, as Duanwu Jie in the State of California; and further declaring June 19, 2026, as Dragon Boat Festival Day in the City and County of San Francisco.",
+  "type": "Resolution",
+  "status": "Mayors Office",
+  "introduced": "6/9/2026",
+  "on_agenda": null,
+  "final_action": "6/16/2026",
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Board of Supervisors",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15579424&GUID=E64D0555-F8D2-419E-96CA-C626947472FB"
+    },
+    {
+      "name": "ACR 123",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15579136&GUID=FCEBFF9C-198F-48E3-A68A-8E90420E085D"
+    },
+    {
+      "name": "CSAC LCC Standing 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15579137&GUID=4AE7A4FE-921F-4092-A6BD-2F9485AC034C"
+    },
+    {
+      "name": "Board Pkt 061626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15581164&GUID=0756C7AE-E890-4A43-8BF0-86EDF8D727F8"
+    },
+    {
+      "name": "Leg Ver2",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15589141&GUID=D5504216-4BC0-4429-8253-17D889A45792"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/16/2026",
+      "body": "Board of Supervisors",
+      "action": "AMENDED, AN AMENDMENT OF THE WHOLE BEARING NEW TITLE",
+      "result": "Pass",
+      "history_id": "36988962",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36988962&GUID=B20217B9-8748-4E48-A8CF-398F6585DE9B",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312511",
+          "person_name": "Jackie Fielder",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "60155",
+          "person_name": "Myrna Melgar",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "330759",
+          "person_name": "Alan Wong",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/16/2026",
+      "body": "Board of Supervisors",
+      "action": "ADOPTED AS AMENDED",
+      "result": "Pass",
+      "history_id": "37030378",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37030378&GUID=D859E8C7-138E-414A-A446-AACEBFB1A9C3",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312511",
+          "person_name": "Jackie Fielder",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "60155",
+          "person_name": "Myrna Melgar",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "330759",
+          "person_name": "Alan Wong",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/9/2026",
+      "body": "President",
+      "action": "REFERRED FOR ADOPTION WITHOUT COMMITTEE REFERENCE AGENDA AT THE NEXT BOARD MEETING",
+      "result": "",
+      "history_id": "36991885",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36991885&GUID=BEF9B05E-FEE3-4195-8E21-525E7E1AF5D1",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

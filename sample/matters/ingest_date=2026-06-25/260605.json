@@ -1,0 +1,177 @@
+{
+  "file_number": "260605",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060307&GUID=E2EA2F78-0C5F-4747-9790-474741051ACA&Options=&Search=",
+  "name": "Proposed Interim Budget - Office of Community Investment and Infrastructure - Operating as Successor Agency to the San Francisco Redevelopment Agency - FY2026-2027",
+  "title": "Resolution approving the Fiscal Year (FY) 2026-2027 Interim Budget of the Office of Community Investment and Infrastructure, operating as the Successor Agency to the San Francisco Redevelopment Agency.",
+  "type": "Resolution",
+  "status": "Mayors Office",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": "6/16/2026",
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Appropriations Committee",
+  "sponsors": [
+    "Mayor"
+  ],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558075&GUID=10813D9D-152B-433F-8BC5-7A4DFA3CAC37"
+    },
+    {
+      "name": "Exhibit A - OCIIs Interim FY 2026-27 Budget",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558127&GUID=65775909-A86B-43EA-9145-5C4518D4F69C"
+    },
+    {
+      "name": "OB Reso No. 03-2026 012626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558078&GUID=8B709926-CF07-41CD-A0EC-9347463BC80D"
+    },
+    {
+      "name": "OCII Reso No. 12-2026 042126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558077&GUID=6DC8EE5B-8A2B-4F27-8FF0-DE42D4AA2E06"
+    },
+    {
+      "name": "MYR Memo 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558076&GUID=54E29544-D484-42E8-99DA-B3D34076F0F9"
+    },
+    {
+      "name": "MYR Transmittal Ltr and Trailing Leg 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558199&GUID=51ECD7C7-7075-4604-94F6-18066DF95DB6"
+    },
+    {
+      "name": "OCII Presentation 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561771&GUID=E3F737E1-CCAE-4AA6-B4CC-750D760E4C49"
+    },
+    {
+      "name": "Cmte Pkt 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15561580&GUID=B77D8092-29BC-448A-9CC0-E37F6B886112"
+    },
+    {
+      "name": "Board Pkt 061626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15581151&GUID=63B7BF67-4C32-4607-AD53-A595A955F679"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/16/2026",
+      "body": "Board of Supervisors",
+      "action": "ADOPTED",
+      "result": "Pass",
+      "history_id": "36989371",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36989371&GUID=1BE93FE2-0E42-471A-AB01-A8B9B2AF43E3",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312511",
+          "person_name": "Jackie Fielder",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "60155",
+          "person_name": "Myrna Melgar",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "330759",
+          "person_name": "Alan Wong",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/10/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36934326",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36934326&GUID=0121905C-5E9B-476A-8EC4-5AC555CE4BCC",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Excused"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36939566",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939566&GUID=5134482C-36F3-4231-91E5-F7AE5B271D30",
+      "votes": []
+    },
+    {
+      "date": "6/1/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36939565",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939565&GUID=48CE9F70-3D25-4BF3-9B58-7C29829D7B45",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

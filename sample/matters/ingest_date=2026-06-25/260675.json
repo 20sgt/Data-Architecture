@@ -1,0 +1,83 @@
+{
+  "file_number": "260675",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8064826&GUID=FAA55A3D-CD79-495C-93D1-BA956DA934D7&Options=Advanced&Search=",
+  "name": "Hearing - Civil Grand Jury Report - When Making Do Doesn't Work: San Francisco Jails in Crisis",
+  "title": "Hearing on the 2025-2026 Civil Grand Jury Report, entitled \"When Making Do Doesn't Work: San Francisco Jails in Crisis.\"",
+  "type": "Hearing",
+  "status": "Pending Committee Action",
+  "introduced": "6/16/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Government Audit and Oversight Committee",
+  "sponsors": [],
+  "related_files": [
+    "260676"
+  ],
+  "attachments": [
+    {
+      "name": "CGJ Report 060926",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567285&GUID=AA6D5010-8A12-4869-82D7-31EF3BC3A3AA"
+    },
+    {
+      "name": "CGJ Letters 060526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567286&GUID=393EAF61-65F9-4F6F-8067-7A1DDB1D8C84"
+    },
+    {
+      "name": "CGJ Press Release",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15567287&GUID=38031233-7595-4A04-9BF5-B528AE8DD1DC"
+    },
+    {
+      "name": "COB Memo 060926",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15568966&GUID=39DB52FE-E816-4F8C-9E98-C71C73648ED8"
+    },
+    {
+      "name": "FYI Referral 062326",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15650318&GUID=94631A97-F6F3-427F-B0DD-8A764472E24D"
+    },
+    {
+      "name": "SFDA Response 061526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15653903&GUID=08CAE6C2-7E3F-4EA9-BB49-4FE89C254A74"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/23/2026",
+      "body": "Clerk of the Board",
+      "action": "RESPONSE RECEIVED",
+      "result": "",
+      "history_id": "37109375",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37109375&GUID=A8EB05C3-316D-4C90-B54C-10AD065EA684",
+      "votes": []
+    },
+    {
+      "date": "6/23/2026",
+      "body": "Clerk of the Board",
+      "action": "REFERRED TO DEPARTMENT",
+      "result": "",
+      "history_id": "37096427",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37096427&GUID=3971E557-6F0C-4F4A-B234-B3997CF68CE0",
+      "votes": []
+    },
+    {
+      "date": "6/16/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36965686",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36965686&GUID=DA56E86A-A6AE-4165-8BBB-00E758712088",
+      "votes": []
+    },
+    {
+      "date": "6/9/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36965685",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36965685&GUID=DAAE33EE-1ADF-4655-B854-7F92A1E3B1CD",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

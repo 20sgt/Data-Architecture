@@ -1,0 +1,43 @@
+{
+  "file_number": "260719",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8116811&GUID=F1BEE9D0-F3CE-4F91-86AF-43F5FCCEF9CF&Options=Advanced&Search=",
+  "name": "Amending the Budget and Legislative Analyst Services Audit Plan - Academy of Sciences - FY2026-2027",
+  "title": "Motion directing the Budget and Legislative Analyst to initiate a performance and management audit, in collaboration with the Controller’s office, of the Academy of Sciences in Fiscal Year 2026-2027.",
+  "type": "Motion",
+  "status": "Pending Committee Action",
+  "introduced": "6/16/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Finance Committee",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15644408&GUID=0B52EE6B-87AD-475E-87AA-9E570095BD1A"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/23/2026",
+      "body": "Clerk of the Board",
+      "action": "TRANSFERRED",
+      "result": "",
+      "history_id": "37092185",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37092185&GUID=5C42DB4C-DEA2-44A9-9638-7982172313E4",
+      "votes": []
+    },
+    {
+      "date": "6/16/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "37077521",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37077521&GUID=5A1E7DBC-23A7-4C06-9CB3-D3A730BB78D5",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

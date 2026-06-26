@@ -1,0 +1,135 @@
+{
+  "file_number": "260598",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060300&GUID=0EAE0549-D076-4CFE-84DC-CE50CD5C1E26&Options=&Search=",
+  "name": "Administrative Code - San Francisco Self-Insurance Surety Bond Fund",
+  "title": "Ordinance amending the Administrative Code to authorize the City Administrator to pause, reduce, or return the annual contributions by the departments that contract for Public Works under Administrative Code Chapter 6 to the San Francisco Self-Insurance Surety Bond Fund.",
+  "type": "Ordinance",
+  "status": "First Reading",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Appropriations Committee",
+  "sponsors": [
+    "Mayor"
+  ],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557992&GUID=96C5BF38-FB5C-48B1-BD16-DB2EB9EA1E58"
+    },
+    {
+      "name": "Leg Dig Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557993&GUID=B76BC00A-B4D7-4387-BBE5-6C791F988130"
+    },
+    {
+      "name": "MYR Memo 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15557995&GUID=2312E3C7-A859-4B3C-8D2A-429F40CC8778"
+    },
+    {
+      "name": "MYR Transmittal and Trailing Leg Ltr 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558038&GUID=EE77E322-9C99-4DC9-876A-DC12DB8951FC"
+    },
+    {
+      "name": "MYR 30-day Waiver Req 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558007&GUID=E3D77287-5844-42F1-9040-A2B16F1A30D7"
+    },
+    {
+      "name": "PAM 30 Day Waiver 060426",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558063&GUID=D939DAF2-210D-4B15-9B1C-0B5FCBE655B8"
+    },
+    {
+      "name": "Cmte Pkt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583806&GUID=79C247B2-7A01-4E20-909E-6509C1DE4639"
+    },
+    {
+      "name": "Cmte Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583836&GUID=2B5AFBD0-9BDD-4C2E-A7AD-9D7A1EC0FA2A"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/24/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/22/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36956793",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36956793&GUID=DA811593-78FC-4341-A65F-BCD6E127312A",
+      "votes": []
+    },
+    {
+      "date": "6/18/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36955048",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36955048&GUID=7265F357-A9A1-4E21-9527-150C2A88E0D1",
+      "votes": []
+    },
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36954339",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954339&GUID=999D2A85-A8A2-40CB-AD6B-938704072C4D",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Absent"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "ASSIGNED",
+      "result": "",
+      "history_id": "36939564",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939564&GUID=0EBE1AAE-2C26-4FDF-B636-D87E951FC577",
+      "votes": []
+    },
+    {
+      "date": "6/1/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36939563",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939563&GUID=443AA32F-C409-4F97-82AA-7591B3099FE8",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

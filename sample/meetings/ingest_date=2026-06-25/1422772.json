@@ -1,0 +1,106 @@
+{
+  "meeting_id": "1422772",
+  "event_guid": "C80966FE-0F77-4E06-B491-DDF100530AF6",
+  "body_name": "Budget and Finance Committee",
+  "meeting_date": "6/17/2026",
+  "meeting_time": "10:00 AM",
+  "location": "City Hall, Legislative Chamber, Room 250",
+  "meeting_subtype": "Regular",
+  "agenda_status": "Final",
+  "minutes_status": "Final",
+  "agenda_url": "https://sfgov.legistar.com/View.ashx?M=A&ID=1422772&GUID=C80966FE-0F77-4E06-B491-DDF100530AF6",
+  "minutes_url": "https://sfgov.legistar.com/View.ashx?M=M&ID=1422772&GUID=C80966FE-0F77-4E06-B491-DDF100530AF6",
+  "video_clip_id": "52645",
+  "documents": [
+    {
+      "document_source": "meeting_agenda",
+      "document_title": "Agenda",
+      "document_url": "https://sfgov.legistar.com/View.ashx?M=A&ID=1422772&GUID=C80966FE-0F77-4E06-B491-DDF100530AF6",
+      "body_text": null
+    },
+    {
+      "document_source": "meeting_minutes",
+      "document_title": "Minutes",
+      "document_url": "https://sfgov.legistar.com/View.ashx?M=M&ID=1422772&GUID=C80966FE-0F77-4E06-B491-DDF100530AF6",
+      "body_text": null
+    },
+    {
+      "document_source": "transcript",
+      "document_title": "Transcript (VTT)",
+      "document_url": "https://sanfrancisco.granicus.com/videos/52645/captions.vtt",
+      "body_text": null
+    }
+  ],
+  "agenda_items": [
+    {
+      "item_seq": 0,
+      "matter_file": "260500",
+      "matter_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8008867&GUID=F9C9103F-8DC2-453D-BB54-D472617CAE62&Options=&Search=",
+      "agenda_number": null,
+      "matter_name": "Amended and Restated Lease Agreement - Retroactive - Tad’s - 44 Ellis Street - Retail Space - Monthly Base Rent to a Percentage Rent Calculated as 8% of Gross Revenues",
+      "matter_type": "Resolution",
+      "matter_status": "Mayors Office",
+      "title": "Resolution retroactively approving an Amended and Restated Lease Agreement between the City and County of San Francisco and Tad’s Inc., for the retail space located at 44 Ellis Street in the Ellis-O’Farrell Garage, to amend the calculation of the monthly base rent to a percentage rent calculated as 8% of gross revenues retroactive to January 1, 2021; to amend the monthly water charge to $2,400 retroactive to February 1, 2024; to amend the calculation of base rent and water charge during the first option to extend; to require Tad’s to pay a $4,000 administrative fee; to impose minimum hours of operation; to waive Tad’s obligation to pay base rent for the period beginning on April 1, 2020 to December 31, 2020; and to waive Tad’s obligation to pay outstanding water charge for the period beginning February 1, 2020 to January 31, 2024, effective upon approval of this Resolution through the expiration date of April 30, 2029.",
+      "action_raw": "AMENDED, AN AMENDMENT OF THE WHOLE BEARING NEW TITLE",
+      "action_result": "Pass",
+      "history_id": "36954862",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954862&GUID=48E49786-1227-4711-B8F1-702C69565AE5"
+    },
+    {
+      "item_seq": 1,
+      "matter_file": "260500",
+      "matter_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8008867&GUID=F9C9103F-8DC2-453D-BB54-D472617CAE62&Options=&Search=",
+      "agenda_number": null,
+      "matter_name": "Amended and Restated Lease Agreement - Retroactive - Tad’s - 44 Ellis Street - Retail Space - Monthly Base Rent to a Percentage Rent Calculated as 8% of Gross Revenues",
+      "matter_type": "Resolution",
+      "matter_status": "Mayors Office",
+      "title": "Resolution retroactively approving an Amended and Restated Lease Agreement between the City and County of San Francisco and Tad’s Inc., for the retail space located at 44 Ellis Street in the Ellis-O’Farrell Garage, to amend the calculation of the monthly base rent to a percentage rent calculated as 8% of gross revenues retroactive to January 1, 2021; to amend the monthly water charge to $2,400 retroactive to February 1, 2024; to amend the calculation of base rent and water charge during the first option to extend; to require Tad’s to pay a $4,000 administrative fee; to impose minimum hours of operation; to waive Tad’s obligation to pay base rent for the period beginning on April 1, 2020 to December 31, 2020; and to waive Tad’s obligation to pay outstanding water charge for the period beginning February 1, 2020 to January 31, 2024, effective upon approval of this Resolution through the expiration date of April 30, 2029.",
+      "action_raw": "RECOMMENDED AS AMENDED",
+      "action_result": "Pass",
+      "history_id": "37035925",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37035925&GUID=63586D0C-1F33-4881-9698-6E32B219E602"
+    },
+    {
+      "item_seq": 2,
+      "matter_file": "260303",
+      "matter_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=7962498&GUID=302D4709-FCA6-420E-BB71-BCBA97A9BF55&Options=&Search=",
+      "agenda_number": null,
+      "matter_name": "Administrative Code - Increasing Accept and Expend Threshold Amount for Grants",
+      "matter_type": "Ordinance",
+      "matter_status": "Pending Committee Action",
+      "title": "Ordinance amending the Administrative Code to increase the minimum grant award amount requiring Board of Supervisors approval for acceptance and expenditure from $100,000 to the greater of $1,000,000 or the federal single audit threshold amount set by the United States Office of Management and Budget, starting October 1, 2026; require Board of Supervisors approval of a grant increase only if it raises the grant to the approval threshold for the first time or increases a previously-approved grant to either 110% or more of the previously-approved amount or $200,000 or more above the previously-approved amount; authorize the Controller to make rules governing the acceptance and expenditure of any grants or grant increases that do not require Board of Supervisors approval; exempt gifts of legal services and litigation-related expert services from the requirement that department obtain Board of Supervisors approval to accept gifts valued above $10,000; and make other non-substantive organizational changes to the sections of code relating to cash revolving funds and acceptance and expendit",
+      "action_raw": "AMENDED, AN AMENDMENT OF THE WHOLE BEARING NEW TITLE",
+      "action_result": "Pass",
+      "history_id": "36954863",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954863&GUID=E1B3CF17-E8A5-469E-B3AD-DB914D68E1CB"
+    },
+    {
+      "item_seq": 3,
+      "matter_file": "260303",
+      "matter_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=7962498&GUID=302D4709-FCA6-420E-BB71-BCBA97A9BF55&Options=&Search=",
+      "agenda_number": null,
+      "matter_name": "Administrative Code - Increasing Accept and Expend Threshold Amount for Grants",
+      "matter_type": "Ordinance",
+      "matter_status": "Pending Committee Action",
+      "title": "Ordinance amending the Administrative Code to increase the minimum grant award amount requiring Board of Supervisors approval for acceptance and expenditure from $100,000 to the greater of $1,000,000 or the federal single audit threshold amount set by the United States Office of Management and Budget, starting October 1, 2026; require Board of Supervisors approval of a grant increase only if it raises the grant to the approval threshold for the first time or increases a previously-approved grant to either 110% or more of the previously-approved amount or $200,000 or more above the previously-approved amount; authorize the Controller to make rules governing the acceptance and expenditure of any grants or grant increases that do not require Board of Supervisors approval; exempt gifts of legal services and litigation-related expert services from the requirement that department obtain Board of Supervisors approval to accept gifts valued above $10,000; and make other non-substantive organizational changes to the sections of code relating to cash revolving funds and acceptance and expendit",
+      "action_raw": "CONTINUED AS AMENDED",
+      "action_result": "Pass",
+      "history_id": "37038530",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37038530&GUID=41641A9A-0C08-427F-B980-4FE77DA856BA"
+    },
+    {
+      "item_seq": 4,
+      "matter_file": "260523",
+      "matter_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8030247&GUID=91140708-E390-4AE0-BE40-C8968D3AE179&Options=&Search=",
+      "agenda_number": null,
+      "matter_name": "Cost of Living Adjustment to the Contract for Budget and Legislative Analyst Services - $3,544,900 - FY2026-2027",
+      "matter_type": "Motion",
+      "matter_status": "Passed",
+      "title": "Motion enacting a 4.50% cost of living adjustment (COLA) to the base Fiscal Year (FY) 2025-2026 contract amount of $3,392,249 for Budget and Legislative Analyst Services, to be effectuated as of July 1, 2026, resulting in a new FY2026-2027 contract amount of $3,544,900 an annual increase of $152,651 and a total not to exceed contract amount of $36,000,000 for the contract term ending December 31, 2031; and directing the Clerk of the Board to take all necessary administrative action to amend the contract accordingly.",
+      "action_raw": "RECOMMENDED",
+      "action_result": "Pass",
+      "history_id": "36995251",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36995251&GUID=AC1F603B-1E6E-44FE-9A4A-2FFE8C056F23"
+    }
+  ]
+}
