@@ -1,0 +1,68 @@
+{
+  "file_number": "260467",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060294&GUID=E9CE4347-251C-46ED-B65A-CFDD0F09654C&Options=&Search=",
+  "name": "Assessment Ballots for City Parcels - Downtown Community Benefit District",
+  "title": "Resolution authorizing the Mayor or his designee to cast an assessment ballot in the affirmative for the proposed renewal and expansion of a property and business improvement district known as the Downtown Community Benefit District, with respect to certain parcels of real property owned by the City that would be subject to assessment in said District.",
+  "type": "Resolution",
+  "status": "New Business",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Government Audit and Oversight Committee",
+  "sponsors": [
+    "Danny Sauter"
+  ],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558181&GUID=944D2091-4BAD-42FA-9D8E-205EE9E635D5"
+    },
+    {
+      "name": "Comm Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583329&GUID=7388432F-5A38-4D7F-AC9F-4892ED8FFAD7"
+    },
+    {
+      "name": "City-Owned Parcels and Assessment List",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15595151&GUID=52EF53AB-5C9F-44B4-9B4F-2556C950650D"
+    },
+    {
+      "name": "Board Pkt 063026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15657187&GUID=8B551372-B07D-44CF-B808-124254CEB382"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/18/2026",
+      "body": "Government Audit and Oversight Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36967891",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36967891&GUID=3A5CE06F-1BEC-426F-A41A-DEAEEEBF9835",
+      "votes": [
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36939622",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939622&GUID=D47EFCDB-ABDB-442F-84DE-69427E7C0787",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

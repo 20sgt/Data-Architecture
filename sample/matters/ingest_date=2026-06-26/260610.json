@@ -1,0 +1,148 @@
+{
+  "file_number": "260610",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060311&GUID=49E22B1C-53A0-47E5-819A-61809C1BA17A&Options=&Search=",
+  "name": "Accept and Expend Grants - Recurring State Grant Funds - Department of Public Health - FY2026-2027",
+  "title": "Resolution authorizing the acceptance and expenditure of Recurring State grant funds by the San Francisco Department of Public Health for Fiscal Year (FY) 2026-2027.",
+  "type": "Resolution",
+  "status": "New Business",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Appropriations Committee",
+  "sponsors": [
+    "Mayor"
+  ],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558104&GUID=51230C10-431A-408D-9445-F9777FFE525B"
+    },
+    {
+      "name": "Recurring FY2026-2027 State Grants, Attachment A",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558137&GUID=4E3BBB8E-0BA4-4ED3-9602-84A81F0C450C"
+    },
+    {
+      "name": "Recurring Grants Subcontractors FY26-27",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558136&GUID=3D75F22C-FB92-4B69-B851-8EA54CDEDCA6"
+    },
+    {
+      "name": "DPH Memo 053126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558105&GUID=FB60978A-A988-4AA9-9A71-22069FE3DEDE"
+    },
+    {
+      "name": "MYR Memo 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558196&GUID=287EE9E9-A06B-43D6-B1F6-7777B99D2F4E"
+    },
+    {
+      "name": "MYR Transmittal Ltr and Trailing Leg 060126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558194&GUID=F731BB30-F4E1-497B-88AE-85FEFAB1EB54"
+    },
+    {
+      "name": "Forms 126 - 61",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558139&GUID=38BE9E9B-9A8A-4E9E-9568-3004D8354B01"
+    },
+    {
+      "name": "Cmte Pkt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583796&GUID=CA4D9B56-C52D-4C70-873B-EF72A9F12692"
+    },
+    {
+      "name": "Cmte Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583827&GUID=3B5A65CC-5AA4-44C0-93C5-D4A4DD740B9F"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/25/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/24/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36956884",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36956884&GUID=6F2A68A0-CA63-4D82-A1DD-56183EC60C69",
+      "votes": []
+    },
+    {
+      "date": "6/22/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36956788",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36956788&GUID=F1EA859D-9A3A-4DF8-B0E6-689305661AE8",
+      "votes": []
+    },
+    {
+      "date": "6/18/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "",
+      "result": "",
+      "history_id": "36955043",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36955043&GUID=5E24A770-A7E0-40DC-8B00-C1D46D1EF301",
+      "votes": []
+    },
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Appropriations Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "36954349",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954349&GUID=52523F87-1684-4267-95EA-A75C41076B3F",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Absent"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "ASSIGNED",
+      "result": "",
+      "history_id": "36939584",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939584&GUID=591DCE77-E2FA-47A2-B5E7-6801A6E5D988",
+      "votes": []
+    },
+    {
+      "date": "6/1/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED",
+      "result": "",
+      "history_id": "36939583",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939583&GUID=D092CCCB-2DA3-4793-95B0-4ED67416C701",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

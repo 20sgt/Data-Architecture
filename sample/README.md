@@ -8,13 +8,13 @@ for two reasons:
    running a scrape.
 
 > This mirrors what the weekly job will write to GCS (`raw/` locally, which is **gitignored** — only
-> this curated `sample/` is committed). Window: **2026-06-15 … 2026-06-21**, scraped 2026-06-25.
+> this curated `sample/` is committed). Window: **2026-06-15 … 2026-06-21**, scraped 2026-06-26.
 
 ## Layout
 ```
 sample/
-  meetings/ingest_date=2026-06-25/<EventId>.json      # one file per meeting  (scrape-by-meeting)
-  matters/ingest_date=2026-06-25/<file_number>.json   # one file per matter   (scrape-by-legislation)
+  meetings/ingest_date=2026-06-26/<EventId>.json      # one file per meeting  (scrape-by-meeting)
+  matters/ingest_date=2026-06-26/<file_number>.json   # one file per matter   (scrape-by-legislation)
 ```
 `ingest_date=` is the partition key (= scrape date). The window above is the date range of the
 meetings/matters themselves.
@@ -56,9 +56,9 @@ a silver derivation (rules: `bucket()` in `scrape/legistar_scrape.py`).
 ## Regenerate
 ```bash
 python -m scrape.legistar_meetings --from 2026-06-15 --to 2026-06-21 \
-    --raw-dir sample/meetings --date 2026-06-25
+    --raw-dir sample/meetings --date 2026-06-26
 playwright install chromium   # one-time, for the legislation enumeration
 python -m scrape.legistar_scrape --from 2026-06-15 --to 2026-06-21 \
-    --agenda-bronze sample/meetings/ingest_date=2026-06-25 \
-    --raw-dir sample/matters/ingest_date=2026-06-25
+    --agenda-bronze sample/meetings/ingest_date=2026-06-26 \
+    --raw-dir sample/matters/ingest_date=2026-06-26
 ```
