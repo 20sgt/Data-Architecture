@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  parser-tests:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,4 +14,4 @@ jobs:
           python-version: "3.14"   # the project interpreter (matches .venv); bump in one place if it changes
           cache: pip
       - run: pip install -r requirements.txt
-      - run: pytest scrape/test_parsers.py -v       # offline parsers only — no network, no browser
+      - run: pytest scrape/ -v       # all scrape/ tests are offline (parsers + collect plumbing) — no network/browser

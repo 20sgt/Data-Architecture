@@ -328,10 +328,12 @@ def enumerate_current_month() -> list[CalendarRow]:
 
 
 def enumerate_calendar(year: str | int | None = None, body: str | None = None) -> list[CalendarRow]:
-    """Enumerate calendar rows for a year / body via the Telerik postback (needs Playwright).
+    """Enumerate ALL calendar rows for a year / body via the Telerik postback (needs Playwright).
 
-    Deep history (past months/years) is only reachable through the calendar's RadComboBox
-    postback, so this drives a headless browser. Run `playwright install chromium` first.
+    Deep history (past months/years) is only reachable through the calendar's RadComboBox postback,
+    so this drives a headless browser. Run `playwright install chromium` first. The grid renders only
+    <=100 rows per page, so we page through every page and assert we collected the grid's reported
+    total — a paging miss fails loudly instead of silently dropping meetings.
     """
     from playwright.sync_api import sync_playwright
     rows: list[CalendarRow] = []
@@ -343,22 +345,93 @@ def enumerate_calendar(year: str | int | None = None, body: str | None = None) -
             _select_radcombo(page, f"{CP}lstYears", str(year))
         if body:
             _select_radcombo(page, f"{CP}lstBodies", body)
-        page.wait_for_load_state("networkidle", timeout=60_000)
-        rows = parse_calendar(page.content())
+        rows = _collect_all_pages(page)
         browser.close()
     log.info("enumerated %d calendar rows (year=%s body=%s)", len(rows), year, body)
-    if len(rows) >= 95:
-        log.warning("calendar returned %d rows — likely hit the ~100-row RadGrid page cap; "
-                    "window per body (--body) or per month to avoid SILENT truncation", len(rows))
+    return rows
+
+
+# Calendar RadGrid pager line, e.g. "Page 1 of 2, items 1 to 100 of 189."
+_PAGER_PAGES = re.compile(r"Page\s+\d+\s+of\s+(\d+)", re.I)
+_PAGER_TOTAL = re.compile(r"items\s+[\d,]+\s+to\s+[\d,]+\s+of\s+([\d,]+)", re.I)
+
+
+def _pager_pages(text: str) -> int:
+    """Total page count from the pager line; 1 when there's no pager (single page)."""
+    m = _PAGER_PAGES.search(text)
+    return int(m.group(1)) if m else 1
+
+
+def _pager_total(text: str) -> int | None:
+    """Reported total row count from the pager line; None when there's no pager."""
+    m = _PAGER_TOTAL.search(text)
+    return int(m.group(1).replace(",", "")) if m else None
+
+
+def _ajax_postback(page, trigger_js: str, arg) -> str:
+    """Fire a Telerik trigger (combo select / pager nav) that posts back via ASP.NET, then wait for
+    the grid to re-render. The trigger must defer __doPostBack via setTimeout — ASP.NET's postback
+    reads arguments.callee, illegal in Playwright's strict-mode evaluate but fine in a deferred
+    callback. The postback REMOVES then re-adds the grid table, so we wait it out deterministically:
+    a brief settle (let the old table detach), network-idle, then wait for the table to reappear —
+    fixed sleeps alone race the ~1s re-render and read a momentarily-absent grid."""
+    result = page.evaluate(trigger_js, arg)
+    page.wait_for_timeout(500)                          # let the postback fire + the old table detach
+    try:
+        page.wait_for_load_state("networkidle", timeout=60_000)
+    except Exception:
+        pass
+    page.wait_for_selector("table.rgMasterTable", state="visible", timeout=30_000)  # new grid rendered
+    page.wait_for_timeout(300)
+    return result
+
+
+def _collect_all_pages(page) -> list[CalendarRow]:
+    """Parse every page of the calendar RadGrid and assert the de-duped count equals the grid's
+    reported total, so paging that silently drops rows fails loudly. The grid caps at 100 rows/page
+    with a numeric pager driven by Telerik.Web.UI.Grid.NavigateToPage(gridId, n)."""
+    if not page.query_selector("table.rgMasterTable"):
+        return []
+    grid_id = page.eval_on_selector("table.rgMasterTable", "e => e.id")
+    info = page.inner_text("body")
+    pages, total = _pager_pages(info), _pager_total(info)
+    rows: list[CalendarRow] = []
+    seen: set[str] = set()
+    for pnum in range(1, pages + 1):
+        if pnum > 1:
+            _ajax_postback(
+                page,
+                "([gid, p]) => { setTimeout(function () {"
+                " Telerik.Web.UI.Grid.NavigateToPage(gid, p); }, 0); return 'ok'; }",
+                [grid_id, str(pnum)])
+        for r in parse_calendar(page.content()):
+            if r.meeting_id not in seen:
+                seen.add(r.meeting_id)
+                rows.append(r)
+    if total is not None and len(rows) != total:
+        raise AssertionError(f"calendar paging incomplete: collected {len(rows)} of {total} reported "
+                             f"rows across {pages} page(s) — Legistar pager/layout change?")
     return rows
 
 
 def _select_radcombo(page, base_id: str, item_text: str) -> None:
-    """Pick an item in a Telerik RadComboBox by visible text, then wait for the postback."""
-    page.click(f"#{base_id}_Arrow")
-    page.wait_for_selector(f"#{base_id}_DropDown", state="visible", timeout=15_000)
-    page.click(f"#{base_id}_DropDown >> text=/^\\s*{re.escape(item_text)}\\s*$/")
-    page.wait_for_load_state("networkidle", timeout=60_000)
+    """Pick a Telerik RadComboBox item by visible text, reliably. Direct UI clicks race the dropdown's
+    open-animation and silently no-op in headless, so we drive Telerik's client API ($find ->
+    findItemByText -> select). The combo's postback uniqueID is its clientID with _ -> $."""
+    result = _ajax_postback(
+        page,
+        """([cid, uid, text]) => {
+             var c = window.$find && window.$find(cid);
+             if (!c) return 'no-combo';
+             var it = c.findItemByText(text);
+             if (!it) return 'no-item';
+             it.select();
+             setTimeout(function () { __doPostBack(uid, ''); }, 0);
+             return 'ok';
+           }""",
+        [base_id, base_id.replace("_", "$"), item_text])
+    if result != "ok":
+        raise LookupError(f"RadComboBox {base_id}: {result} for {item_text!r}")
 
 
 # --------------------------------------------------------------------------- orchestration / CLI
@@ -391,6 +464,9 @@ def collect(rows: list[CalendarRow], out_dir: Path | None = None, completed_only
     meetings: list[Meeting] = []
     targets = [r for r in rows if r.has_minutes] if completed_only else rows
     for i, r in enumerate(targets, 1):
+        if out_dir is not None and (out_dir / f"{r.meeting_id}.json").exists():
+            log.info("[%d/%d] skip %s — already on disk (resume)", i, len(targets), r.meeting_id)
+            continue
         log.info("[%d/%d] fetching %s %s", i, len(targets), r.body_name, r.meeting_date)
         try:
             m = scrape_meeting(r.meeting_id, r.event_guid, cal=r,
