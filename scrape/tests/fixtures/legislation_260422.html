@@ -1,0 +1,51 @@
+<!--
+  SYNTHETIC fixture — NOT a live capture. Authored for test_scrape_matter.py.
+
+  A minimal-but-structurally-faithful LegislationDetail.aspx page: the exact value-label ids
+  scrape_matter reads, two View.ashx?M=F attachment anchors, and a history grid
+  (ctl00_ContentPlaceHolder1_gridLegislation_ctl00) whose two acted rows carry radopen() links
+  pointing at the two REAL HistoryDetail fixtures (ID 36969551 = committee, 36861771 = board), so the
+  test exercises the full radopen -> history_id -> votes wiring offline. File # 260422 matches the
+  committee roll-call fixture; the board row is borrowed to cover a second, larger roll-call.
+-->
+<html>
+<body>
+  <span id="ctl00_ContentPlaceHolder1_lblFile2">260422</span>
+  <span id="ctl00_ContentPlaceHolder1_lblName2">Accept and Expend Grant - Example</span>
+  <span id="ctl00_ContentPlaceHolder1_lblTitle2">Resolution authorizing the acceptance and expenditure of an example grant.</span>
+  <span id="ctl00_ContentPlaceHolder1_lblType2">Resolution</span>
+  <span id="ctl00_ContentPlaceHolder1_lblStatus2">Passed</span>
+  <span id="ctl00_ContentPlaceHolder1_lblIntroduced2">5/20/2026</span>
+  <span id="ctl00_ContentPlaceHolder1_lblOnAgenda2">6/15/2026</span>
+  <span id="ctl00_ContentPlaceHolder1_lblPassed2">6/16/2026</span>
+  <span id="ctl00_ContentPlaceHolder1_lblEnactmentDate2">6/25/2026</span>
+  <span id="ctl00_ContentPlaceHolder1_lblEnactmentNumber2">R-0123-26</span>
+  <a id="ctl00_ContentPlaceHolder1_hypInControlOf2" href="#">Land Use and Transportation Committee</a>
+  <span id="ctl00_ContentPlaceHolder1_lblSponsors2">Myrna Melgar, Chyanne Chen and Bilal Mahmood</span>
+  <span id="ctl00_ContentPlaceHolder1_lblRelatedFiles2">260100, 260200</span>
+
+  <!-- attachments: the first "Leg Ver*" is the full bill text; a second non-bill doc proves order/capture -->
+  <a href="View.ashx?M=F&amp;ID=9001&amp;GUID=AAAA1111-2222-3333-4444-555566667777">Leg Ver1</a>
+  <a href="View.ashx?M=F&amp;ID=9002&amp;GUID=BBBB1111-2222-3333-4444-555566667777">Referral FYI</a>
+
+  <table id="ctl00_ContentPlaceHolder1_gridLegislation_ctl00" class="rgMasterTable">
+    <tr><th>Date</th><th>Ver</th><th>Action By</th><th>Action</th><th>Result</th><th>Details</th></tr>
+    <tr>
+      <td>6/15/2026</td>
+      <td>1</td>
+      <td>Land Use and Transportation Committee</td>
+      <td>RECOMMENDED</td>
+      <td>Pass</td>
+      <td><a href="#" onclick="radopen('HistoryDetail.aspx?ID=36969551&amp;GUID=0C4442D2-1111-2222-3333-444455556666');return false;">Action details</a></td>
+    </tr>
+    <tr>
+      <td>6/16/2026</td>
+      <td>2</td>
+      <td>Board of Supervisors</td>
+      <td>FINALLY PASSED</td>
+      <td>Pass</td>
+      <td><a href="#" onclick="radopen('HistoryDetail.aspx?ID=36861771&amp;GUID=0C4442D2-7777-8888-9999-AAAABBBBCCCC');return false;">Action details</a></td>
+    </tr>
+  </table>
+</body>
+</html>
