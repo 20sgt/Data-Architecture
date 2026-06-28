@@ -25,7 +25,7 @@ CLI:
     python legistar_scrape.py --file 260388 [--with-text]
     python legistar_scrape.py --from 2026-05-01 --to 2026-05-14 [--with-text] [--out matters.json]
     python legistar_scrape.py --from 2026-06-11 --to 2026-06-25 \
-        --agenda-bronze raw/meetings/ingest_date=2026-06-25 --raw-dir raw/matters/ingest_date=2026-06-25
+        --agenda-bronze raw/meetings/ingest_date=2026-06-25 --date 2026-06-25
 """
 
 from __future__ import annotations
@@ -420,16 +420,18 @@ def main() -> None:
     ap.add_argument("--to", dest="end", help="introduced-date end YYYY-MM-DD")
     ap.add_argument("--with-text", action="store_true", help="download + extract Leg Ver PDFs")
     ap.add_argument("--out", help="write results as JSON array to this path")
-    ap.add_argument("--raw-dir", dest="raw_dir",
-                    help="write one JSON file per matter to this directory (raw landing zone)")
+    ap.add_argument("--raw-dir", dest="raw_dir", default="raw/matters",
+                    help="bronze landing zone root (an ingest_date=<--date> partition is appended)")
+    ap.add_argument("--date", dest="ingest_date", default=date.today().isoformat(),
+                    help="ingest partition date YYYY-MM-DD (default: today) — mirrors the meeting slice")
     ap.add_argument("--agenda-bronze", dest="agenda_bronze",
                     help="meeting bronze dir (raw/meetings/ingest_date=...) whose agenda matter_files "
                          "are ALSO scraped — the Option-2 discovery feed (run the meeting scraper first)")
     args = ap.parse_args()
 
     out_dir = None
-    if args.raw_dir:
-        out_dir = Path(args.raw_dir)
+    if not args.out:                      # --out (single array) skips the per-file bronze dir
+        out_dir = Path(args.raw_dir) / f"ingest_date={args.ingest_date}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
     agenda_urls = None
@@ -448,19 +450,13 @@ def main() -> None:
     else:
         ap.error("provide --file, OR --from/--to, OR --agenda-bronze")
 
-    if args.raw_dir:                      # bronze already written incrementally inside collect()
-        log.info("wrote %d matter files -> %s",
-                 sum(1 for m in matters if m.file_number), args.raw_dir)
-    elif args.out:
+    if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump([dataclasses.asdict(m) for m in matters], f, indent=2)
         log.info("wrote %d matters -> %s", len(matters), args.out)
-    else:
-        for m in matters:                 # stdout: human debug view (truncated text + derived lifecycle)
-            d = dataclasses.asdict(m)
-            d["full_text"] = f"<{len(m.full_text)} chars>" if m.full_text else None
-            d["lifecycle"] = m.lifecycle
-            print(json.dumps(d, indent=2))
+    elif out_dir is not None:             # bronze already written incrementally inside collect()
+        log.info("wrote %d matter files -> %s",
+                 sum(1 for m in matters if m.file_number), out_dir)
 
 
 if __name__ == "__main__":
