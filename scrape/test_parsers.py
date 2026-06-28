@@ -13,7 +13,7 @@ from collections import Counter
 from pathlib import Path
 
 from scrape.history_detail import parse_history_detail
-from scrape.legistar_meetings import parse_calendar, parse_meeting_detail
+from scrape.legistar_meetings import parse_calendar, parse_meeting_detail, _pager_pages, _pager_total
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -63,6 +63,16 @@ def test_meeting_committee_acted_rows_carry_history_id():
     assert all(i.action_raw for i in items)
     assert all(i.history_id for i in items)
     assert Counter(i.action_raw for i in items) == {"RECOMMENDED": 1, "CONTINUED": 1}
+
+
+def test_calendar_pager_parsing():
+    # the year-enumeration paginates; these drive the page loop + the "got everything" assertion
+    line = "Page 1 of 2, items 1 to 100 of 189."
+    assert _pager_pages(line) == 2
+    assert _pager_total(line) == 189
+    assert _pager_total("Page 1 of 3, items 1 to 100 of 1,234.") == 1234   # comma-grouped total
+    assert _pager_pages("no pager — single page") == 1                     # default when absent
+    assert _pager_total("no pager — single page") is None
 
 
 def test_meeting_board_draft_has_no_actions():

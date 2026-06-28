@@ -35,6 +35,7 @@ import json
 import logging
 import argparse
 import dataclasses
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -61,7 +62,10 @@ log = logging.getLogger("legistar")
 # CP carries a leading '#': it prefixes Playwright CSS selectors here, unlike the meeting slice's
 # bare id prefix used with BeautifulSoup find(id=...).
 CP = "#ctl00_ContentPlaceHolder1_"
-RESULT_CAP = 100  # search cap; weekly slices stay safely under it (SF ~30-100 files/week)
+RESULT_CAP = 100  # Legistar's advanced-search HARD cap: it returns <=100 rows with NO pager, and a
+                  # capped page silently hides the overflow. _enumerate_window bisects any date window
+                  # that hits this so no matter is dropped (SF ~30-100 files/week -> weekly rarely caps).
+MAX_WORKERS = 5   # concurrent matter scrapes; aggregate req/s is capped by fetch._throttle, not this
 
 # Status -> lifecycle stage. "Filed" = closed WITHOUT passage (not passed). Extend as the
 # vocabulary grows; unknown statuses fall through to "other".
@@ -267,6 +271,27 @@ def _weekly(start: date, end: date):
         cur += timedelta(days=7)
 
 
+def _enumerate_window(start: date, end: date, page: Page) -> list[str]:
+    """Matters with File-Created in [start, end], bisecting the date range whenever the advanced
+    search hits its hard 100-row cap so a dense window never silently drops its overflow.
+
+    Legistar's advanced search returns <= RESULT_CAP rows with NO pager and reports the capped count
+    (so "100 records" can mean "100+"). We can't page or ask for "All"; the only lever is a narrower
+    date range. A capped window is split in half by date and each half re-enumerated, recursing until
+    every piece is under the cap. SF runs ~30-100 files/week, so weekly slices rarely bisect; a budget
+    week over 100 splits down toward the day. Halves are disjoint date ranges -> no double counting."""
+    urls = enumerate_matters(start, end, page)
+    if len(urls) < RESULT_CAP:
+        return urls
+    if start >= end:                       # a single day still at the cap can't be subdivided further
+        log.error("%s alone returns >= %d matters — cannot subdivide a day; overflow may be dropped",
+                  start, RESULT_CAP)
+        return urls
+    mid = start + (end - start) // 2
+    log.info("window %s..%s hit the %d cap -> bisecting at %s", start, end, RESULT_CAP, mid)
+    return _enumerate_window(start, mid, page) + _enumerate_window(mid + timedelta(days=1), end, page)
+
+
 def read_agenda_matter_urls(bronze_dir: Path) -> list[str]:
     """Distinct LegislationDetail URLs for every matter on a scraped meeting agenda (the discovery
     feed), order-preserving and de-duplicated. Read straight from AgendaItem.matter_url — no per-file
@@ -302,6 +327,30 @@ def _write_matter(m: Matter, out_dir: Path) -> None:
             json.dumps(dataclasses.asdict(m), indent=2, ensure_ascii=False))
 
 
+def _matter_id(url: str) -> str | None:
+    """The LegislationDetail ID= param — the stable per-matter key (same matter, any query params)."""
+    m = re.search(r"[?&]ID=(\d+)", url)
+    return m.group(1) if m else None
+
+
+def _done_matter_ids(out_dir: Path | None) -> set[str]:
+    """matter_ids already written to out_dir (read back from each file's detail_url) — for resumable
+    re-runs: a killed run restarts cheaply by skipping matters already on disk instead of re-fetching.
+    Files are named by file_number (unknown until we fetch), so we match on matter_id, not filename."""
+    done: set[str] = set()
+    if out_dir is None or not out_dir.exists():
+        return done
+    for p in out_dir.glob("*.json"):
+        try:
+            mid = _matter_id(json.loads(p.read_text()).get("detail_url", "") or "")
+        except (OSError, json.JSONDecodeError) as e:
+            log.warning("skip unreadable matter bronze %s: %s", p, e)
+            continue
+        if mid:
+            done.add(mid)
+    return done
+
+
 def collect(file_number=None, start=None, end=None, with_text=False,
             agenda_urls=None, out_dir=None) -> list[Matter]:
     # Agenda matters are LegislationDetail URLs straight from the meeting bronze -> scraped with plain
@@ -316,7 +365,7 @@ def collect(file_number=None, start=None, end=None, with_text=False,
                 urls = [find_matter_url(file_number, page)]
             else:
                 for ws, we in _weekly(start, end):
-                    slice_urls = enumerate_matters(ws, we, page)
+                    slice_urls = _enumerate_window(ws, we, page)   # bisects if the week itself caps
                     log.info("slice %s..%s -> %d matters", ws, we, len(slice_urls))
                     urls += slice_urls
             browser.close()
@@ -325,26 +374,42 @@ def collect(file_number=None, start=None, end=None, with_text=False,
     seen: set[str] = set()
     deduped: list[str] = []
     for u in urls:
-        mid = re.search(r"[?&]ID=(\d+)", u)
-        key = mid.group(1) if mid else u
+        key = _matter_id(u) or u
         if key not in seen:
             seen.add(key)
             deduped.append(u)
     urls = deduped
 
-    matters: list[Matter] = []
-    for i, url in enumerate(urls, 1):
+    # Resumability: skip matters already on disk so a killed run restarts cheaply (same out_dir =
+    # same ingest partition; next week's run writes a new partition, so open matters re-scrape there).
+    done = _done_matter_ids(out_dir)
+    if done:
+        kept = [u for u in urls if _matter_id(u) not in done]
+        log.info("resume: %d already on disk, %d to scrape", len(urls) - len(kept), len(kept))
+        urls = kept
+
+    def _one(idx: int, url: str) -> Matter | None:
         try:                                                         # one bad matter never aborts the batch
             m = scrape_matter(url, with_text=with_text)
         except Exception as e:                                       # noqa: BLE001
-            log.warning("[%d/%d] FAILED %s: %s — skipping", i, len(urls), url, e)
-            continue
+            log.warning("[%d/%d] FAILED %s: %s — skipping", idx, len(urls), url, e)
+            return None
         log.info("[%d/%d] %s | %-26s | %-8s | %d actions | votes:%d",
-                 i, len(urls), m.file_number, (m.status or "")[:26], m.lifecycle,
+                 idx, len(urls), m.file_number, (m.status or "")[:26], m.lifecycle,
                  len(m.actions), sum(len(a.votes) for a in m.actions))
-        matters.append(m)
-        if out_dir is not None:           # incremental write: a late failure keeps already-scraped matters
+        if out_dir is not None:           # incremental write (distinct file per matter -> thread-safe)
             _write_matter(m, out_dir)
+        return m
+
+    # Concurrent fetch: matters are independent and write distinct files; fetch._throttle keeps the
+    # AGGREGATE request rate polite regardless of MAX_WORKERS (workers hide latency, not raise load).
+    matters: list[Matter] = []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+        futures = [ex.submit(_one, i, url) for i, url in enumerate(urls, 1)]
+        for f in as_completed(futures):
+            m = f.result()
+            if m is not None:
+                matters.append(m)
     return matters
 
 

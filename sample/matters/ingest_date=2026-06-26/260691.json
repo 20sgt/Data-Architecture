@@ -1,0 +1,112 @@
+{
+  "file_number": "260691",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8069927&GUID=07EC4B3F-AC7B-44A1-BBC9-B1BE2CB9E64A&Options=&Search=",
+  "name": "Celebrating Juneteenth in San Francisco",
+  "title": "Resolution celebrating Juneteenth as a day of reflection, empowerment, and commemoration of Black freedom and excellence in the City and County of San Francisco; and urging all San Franciscans to join in honoring this important day.",
+  "type": "Resolution",
+  "status": "Passed",
+  "introduced": "6/9/2026",
+  "on_agenda": null,
+  "final_action": "6/26/2026",
+  "enactment_date": "6/26/2026",
+  "enactment_number": "381-26",
+  "in_control": "Clerk of the Board",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15579138&GUID=B32794BF-1AD4-4A3F-81A4-AFE9F6049F0B"
+    },
+    {
+      "name": "Board Pkt 061626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15581165&GUID=F58521B6-5364-4711-80E6-0AE32CA77EC4"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/26/2026",
+      "body": "Mayor",
+      "action": "RETURNED UNSIGNED",
+      "result": "",
+      "history_id": "37116806",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37116806&GUID=EE771023-2FFA-4FEF-B143-16AA5F047C10",
+      "votes": []
+    },
+    {
+      "date": "6/16/2026",
+      "body": "Board of Supervisors",
+      "action": "ADOPTED",
+      "result": "Pass",
+      "history_id": "36988963",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36988963&GUID=5584C0BF-7E15-44EC-9728-F2BB4F668524",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312511",
+          "person_name": "Jackie Fielder",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "60155",
+          "person_name": "Myrna Melgar",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "330759",
+          "person_name": "Alan Wong",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/9/2026",
+      "body": "President",
+      "action": "REFERRED FOR ADOPTION WITHOUT COMMITTEE REFERENCE AGENDA AT THE NEXT BOARD MEETING",
+      "result": "",
+      "history_id": "36991886",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36991886&GUID=6F4A7023-96D6-48D7-9F30-2C73698D473C",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}
