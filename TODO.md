@@ -28,3 +28,42 @@ overlap with the window/agenda feed is harmless.
 **Dependency.** Requires a gold→scraper feedback path (the warehouse must expose
 the open set). Cross-team — coordinate with the DB/silver owner. Until then,
 agenda-feed coverage is the pilot's approximation.
+
+## Representative profiles (People.aspx → PersonDetail scrape)
+
+Today `dim_person` is **identity-only** — `person_id` + `full_name`, captured as a
+byproduct of roll-call votes (`scrape/history_detail.py`) and sponsor names
+(`databricks/gold_merge_databricks.py`). The biographical columns the schema
+declares (`district`, `party`, `gender`, `birth_date`, `supervisor_term_start/end`)
+are unpopulated, `dim_person` is a flat distinct list (no SCD2 versioning), and
+`fact_committee_membership` is empty.
+
+**Problem.** The "who is my representative / what do they work on" use case wants
+district, party, term, and committee seats. None of that is on the meeting or
+legislation pages — it lives behind a third entry point we don't scrape yet:
+`People.aspx` (the member directory) → each member's `PersonDetail.aspx`.
+
+**Fix.** Add a `People.aspx → PersonDetail` pass (mirror the existing
+meeting/legislation slices):
+
+- Enumerate members from `People.aspx`; fetch each `PersonDetail.aspx?ID=<PersonId>`.
+- Parse profile fields → `dim_person` (district, party, gender, term dates), keyed
+on the Legistar `PersonId` already captured from votes — exact join, no name
+matching.
+- Parse the bodies grid (Department / Title / Start / End / Appointed By) →
+`fact_committee_membership` (position ← Title, effective_from/to ← Start/End).
+
+**Schema is ready.** `dim_person` and `fact_committee_membership` columns already
+exist in `erd/schema.dbml`; this pass only fills them. `dim_person` becomes the SCD2
+owner once profile attributes can change over time.
+
+**Plumbing needed.**
+
+- A new scraper module/entrypoint (e.g. `scrape/legistar_people.py`) + a silver
+loader + gold merge into `dim_person` / `fact_committee_membership`.
+- `PersonId` is the join key — already present on `fact_vote`, so existing people
+light up immediately; the pass also adds members who never cast a recorded vote.
+
+**Dependency.** None cross-team — fully additive. Single-producer-clean: the People
+slice is the sole producer of `dim_person` profile attributes and
+`fact_committee_membership`.
