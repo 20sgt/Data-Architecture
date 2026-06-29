@@ -1,0 +1,18 @@
+# keep the build context tiny — the Dockerfile only needs requirements.txt,
+# scrape/, and entrypoint.sh.
+.git
+.venv
+raw/
+sample/
+databricks/
+frontend/
+docs/
+erd/
+terraform/
+.github/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.log
+TODO.md
+README.md
