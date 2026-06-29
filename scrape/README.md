@@ -12,9 +12,7 @@ Two independent slices that scrape `sfgov.legistar.com` HTML into raw **bronze**
 | `legistar_meetings.py` | **Meeting slice.** Calendar → MeetingDetail. Produces `dim_meeting` rows + the agenda **discovery feed** (each agenda item's `matter_url` + `history_id`). No votes.        |
 | `legistar_scrape.py`   | **Legislation slice.** Date-window search + the agenda feed → each Matter's metadata, actions, attachments, and per-member roll-call votes. Sole producer of the fact data. |
 | `history_detail.py`    | Pure parser for a HistoryDetail page → the per-member roll-call (`Vote`s). Called by the legislation slice.                                                                 |
-| `fixtures/`            | Committed live-HTML captures so the pure parsers can be tested offline (no network). Ground truth — don't edit.                                                             |
-| `test_parsers.py`      | Golden tests for the pure parsers against `fixtures/`.                                                                                                                      |
-| `test_collect.py`      | Checks for the orchestration plumbing (rate gate, resumable re-runs, cap bisection).                                                                                        |
+| `tests/`               | Offline test suite (no network/browser). `fixtures/` holds committed live-HTML captures (ground truth — don't edit) plus one synthetic LegislationDetail page; `test_*.py` lock the parsers, the pure helpers, and the orchestration plumbing against them. |
 
 
 Playwright (headless chromium) drives **only** the postback enumeration (calendar year, legislation

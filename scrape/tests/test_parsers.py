@@ -1,11 +1,13 @@
 """Golden tests for the pure HTML parsers — offline, no network, no browser.
 
-Locks the parse contract against the committed fixtures (scrape/fixtures/) so the
+Locks the parse contract against the committed fixtures (scrape/tests/fixtures/) so the
 concurrency + skip-existing refactor (and any future site-layout drift) can't
-silently change what we extract. Only the PURE parsers are tested here; the
-network/Playwright paths (scrape_matter, enumerate_*, collect) are not.
+silently change what we extract. Only the PURE HTML parsers are tested here; the
+enumerate_*/collect Playwright paths are not. scrape_matter's extraction (it fetches
+internally) is covered offline in test_scrape_matter.py; the pure scalar helpers
+(bucket, _split_names, _meeting_in_window) in test_helpers.py.
 
-Run from the repo root:  pytest scrape/test_parsers.py -v
+Run from the repo root:  pytest scrape/tests/test_parsers.py -v
 Counts below were verified against the live-captured fixtures (see fixtures/README.md).
 """
 
