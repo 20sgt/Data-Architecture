@@ -8,10 +8,12 @@ terraform {
   }
 }
 
+
 variable "project_id" {
   type    = string
   default = "corn-off-the-cobb"
 }
+
 
 provider "google" {
   project = var.project_id
@@ -20,10 +22,8 @@ provider "google" {
   add_terraform_attribution_label = false
 }
 
-# --- Current infra: the two existing GCS buckets in corn-off-the-cobb. ---
-# Attributes mirror live state so `terraform plan` reports no changes (adoption via imports.tf).
-# Target infra (Artifact Registry, scraper SA + cotc_raw IAM, Cloud Run Job, Scheduler) is NOT
-# here yet — it comes next.
+
+# --- GCS BUCKETS ---
 
 # Raw landing zone — holds the scraper's ingest_date= partitions (the YTD scrape).
 resource "google_storage_bucket" "cotc_raw" {
@@ -55,7 +55,7 @@ resource "google_storage_bucket" "cotc_raw" {
   }
 }
 
-# Audio-processing branch's bucket (teammate's domain) — captured for completeness.
+
 resource "google_storage_bucket" "podcasts_audio_files" {
   name     = "podcasts-audio-files"
   location = "US-EAST1"
