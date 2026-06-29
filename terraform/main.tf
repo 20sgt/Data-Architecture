@@ -1,10 +1,17 @@
 terraform {
-  required_version = ">= 1.5.0" # import blocks
+  required_version = ">= 1.5.0"
   required_providers {
     google = {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+  }
+
+  # Shared remote state in GCS — everyone works against the same state
+  # backend config can't use variables, so the bucket name is literal.
+  backend "gcs" {
+    bucket = "cotc-tfstate"
+    prefix = "terraform/state"
   }
 }
 
@@ -34,8 +41,7 @@ resource "google_storage_bucket" "cotc_raw" {
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
 
-  # cotc_raw is a hierarchical-namespace (folder-enabled) bucket. This block is REQUIRED —
-  # omitting it makes the provider plan a destroy-and-recreate, which would wipe the scrape.
+  # cotc_raw is a hierarchical-namespace (folder-enabled) bucket.
   hierarchical_namespace {
     enabled = true
   }
@@ -45,8 +51,7 @@ resource "google_storage_bucket" "cotc_raw" {
     retention_duration_seconds = 0
   }
 
-  # ponytail: force_destroy stays false — this holds the scrape; don't let `terraform destroy`
-  # wipe it without an explicit opt-in.
+  # this holds the scrape; don't let `terraform destroy` wipe it without an explicit opt-in.
   force_destroy = false
 
   lifecycle {
