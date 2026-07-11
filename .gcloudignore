@@ -1,0 +1,17 @@
+# Build context for `gcloud builds submit` — the image only needs the scraper.
+# Everything else (raw data especially — hundreds of MB) stays out.
+.git
+.gcloudignore
+.venv/
+raw/
+frontend/
+databricks/
+docs/
+erd/
+sample/
+terraform/
+scrape/__pycache__/
+scrape/tests/
+backfill.sh
+README.md
+TODO.md
