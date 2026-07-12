@@ -178,8 +178,19 @@ gs://cotc_raw/matters/ingest_date=YYYY-MM-DD/<file_number>.json
 gs://cotc_raw/meetings/ingest_date=YYYY-MM-DD/<meeting_id>.json
 ```
 
-The weekly scrape ingests new matters **plus** re-scrapes any matter still in progress, so status
-changes on existing bills aren't missed.
+The weekly scrape ingests matters **created** in the trailing 7-day window **plus** re-scrapes
+everything on that week's agendas, so bills that move in a meeting are refreshed. (A matter whose
+status changes *off-agenda* is refreshed only when it next appears on one — the open-set re-scrape
+in `TODO.md` closes that gap.)
+
+**Bronze coverage** (partitions are *scrape* dates; event dates live inside each record):
+
+| Partition | Contents |
+|---|---|
+| `ingest_date=2026-06-26` | Original YTD scrape (Jan–Jun 2026), no PDF text |
+| `ingest_date=2026-07-11` | **Deep-history backfill: 2000-01-01 → 2026-07-11, with PDF text** — ~38.7k matters + ~4.7k meetings; where it overlaps 06-26, gold's latest-wins dedup prefers these |
+| `ingest_date=2026-07-12` | First verified Cloud Run Job execution (trailing-week window) |
+| `ingest_date=<Wednesdays>` | One partition per scheduled weekly run (Cloud Scheduler → Cloud Run Job, Wed 06:00 PT) |
 
 ### 2. Silver — incremental ingestion
 
