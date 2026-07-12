@@ -14,6 +14,7 @@ resource "google_project_service" "scrape_apis" {
     "artifactregistry.googleapis.com",
     "cloudscheduler.googleapis.com",
     "cloudbuild.googleapis.com",
+    "iamcredentials.googleapis.com",
   ])
   service            = each.key
   disable_on_destroy = false
