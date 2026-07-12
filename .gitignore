@@ -21,6 +21,7 @@ __pycache__/
 
 # slop
 .claude
+
 # Terraform local artifacts (state lives in gs://cotc-tfstate; plans are throwaway)
 terraform/.terraform/
 terraform/tfplan*
