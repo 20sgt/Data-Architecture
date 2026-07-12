@@ -45,6 +45,7 @@ SHOW_FEEDS: dict[str, str] = {
     "warriors-off-court": "https://feeds.megaphone.fm/warriorsoffcourt",
     "fixing-our-city": "https://feeds.megaphone.fm/fixingourcity",
     "chronicled-kamala-harris": "https://feeds.megaphone.fm/chronicled",
+    "voice-of-san-francisco": "https://feed.podbean.com/thevoicesf/feed.xml",
 }
 
 MANIFEST_PATH = "podcasts/_manifest.json"
