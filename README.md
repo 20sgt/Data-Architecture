@@ -183,14 +183,7 @@ everything on that week's agendas, so bills that move in a meeting are refreshed
 status changes *off-agenda* is refreshed only when it next appears on one — the open-set re-scrape
 in `TODO.md` closes that gap.)
 
-**Bronze coverage** (partitions are *scrape* dates; event dates live inside each record):
-
-| Partition | Contents |
-|---|---|
-| `ingest_date=2026-06-26` | Original YTD scrape (Jan–Jun 2026), no PDF text |
-| `ingest_date=2026-07-11` | **Deep-history backfill: 2000-01-01 → 2026-07-11, with PDF text** — ~38.7k matters + ~4.7k meetings; where it overlaps 06-26, gold's latest-wins dedup prefers these |
-| `ingest_date=2026-07-12` | First verified Cloud Run Job execution (trailing-week window) |
-| `ingest_date=<Wednesdays>` | One partition per scheduled weekly run (Cloud Scheduler → Cloud Run Job, Wed 06:00 PT) |
+Per-file layout and what each existing partition covers: [scrape/README.md](scrape/README.md).
 
 ### 2. Silver — incremental ingestion
 
@@ -225,33 +218,14 @@ dashboard consumes.
 
 ---
 
-## Current state
-
-**The full pipeline runs end-to-end on a year of real data**, ingested live from GCS.
-
-Current production figures:
-
-| Layer | Table | Rows |
-|-------|-------|------|
-| Silver | matters / votes / meetings / agenda items | 869 / 10,552 / 112 / 2,224 |
-| Gold | `dim_matter` | 869 |
-| Gold | `dim_person` | 23 |
-| Gold | `dim_committee` | 24 |
-| Gold | `dim_meeting` | 112 |
-| Gold | `dim_document` | 7,594 |
-| Gold | `fact_matter_action` | 3,969 |
-| Gold | `fact_vote` | 10,552 |
-| Gold | `bridge_matter_sponsor` | 1,403 |
-| Gold | `bridge_matter_document` | 7,594 |
-
-Referential integrity passes (zero orphan keys; stable, re-run-safe surrogate keys).
-
-### Known limitations / roadmap
+## Known limitations / roadmap
 
 - **8 unmapped statuses.** A full year of data surfaced 8 matters whose `status` isn't yet in the
   disposition map (they currently land as `final_disposition = 'UNMAPPED'`). This is a designed
   tripwire — they need to be added to the `TERMINAL`/`IN_PROGRESS` maps in the gold notebook.
-- **Orchestration not yet automated.** The notebooks run manually; a scheduled weekly Databricks
+  (Expect more from the 2000→2026 backfill.)
+- **Databricks orchestration not yet automated.** The scrape side is scheduled (Cloud Scheduler →
+  Cloud Run Job, weekly); the notebooks still run manually — a scheduled weekly Databricks
   Workflow (silver → gold → view) is the next step.
 - **Data-quality checks pending.** Integrity assertions (unmapped statuses, orphan keys, name
   collisions) exist inline but should be lifted into a Great Expectations suite that fails the run
