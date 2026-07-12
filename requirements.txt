@@ -3,7 +3,7 @@ requests>=2.31
 beautifulsoup4>=4.12
 lxml>=5.0
 pypdf>=4.0
-playwright>=1.40        # only needed for calendar/legislation postback enumeration; run `playwright install chromium`
+playwright==1.61.0      # postback enumeration only; PINNED to the Dockerfile base image tag (see its INVARIANT) — a loose bound let pip drift past the base's bundled browser. Locally: run `playwright install chromium`
 
 # Warehouse (local dev)
 duckdb>=1.0

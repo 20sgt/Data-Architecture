@@ -178,8 +178,12 @@ gs://cotc_raw/matters/ingest_date=YYYY-MM-DD/<file_number>.json
 gs://cotc_raw/meetings/ingest_date=YYYY-MM-DD/<meeting_id>.json
 ```
 
-The weekly scrape ingests new matters **plus** re-scrapes any matter still in progress, so status
-changes on existing bills aren't missed.
+The weekly scrape ingests matters **created** in the trailing 7-day window **plus** re-scrapes
+everything on that week's agendas, so bills that move in a meeting are refreshed. (A matter whose
+status changes *off-agenda* is refreshed only when it next appears on one — the open-set re-scrape
+in `TODO.md` closes that gap.)
+
+Per-file layout and what each existing partition covers: [scrape/README.md](scrape/README.md).
 
 ### 2. Silver — incremental ingestion
 
@@ -214,33 +218,14 @@ dashboard consumes.
 
 ---
 
-## Current state
-
-**The full pipeline runs end-to-end on a year of real data**, ingested live from GCS.
-
-Current production figures:
-
-| Layer | Table | Rows |
-|-------|-------|------|
-| Silver | matters / votes / meetings / agenda items | 869 / 10,552 / 112 / 2,224 |
-| Gold | `dim_matter` | 869 |
-| Gold | `dim_person` | 23 |
-| Gold | `dim_committee` | 24 |
-| Gold | `dim_meeting` | 112 |
-| Gold | `dim_document` | 7,594 |
-| Gold | `fact_matter_action` | 3,969 |
-| Gold | `fact_vote` | 10,552 |
-| Gold | `bridge_matter_sponsor` | 1,403 |
-| Gold | `bridge_matter_document` | 7,594 |
-
-Referential integrity passes (zero orphan keys; stable, re-run-safe surrogate keys).
-
-### Known limitations / roadmap
+## Known limitations / roadmap
 
 - **8 unmapped statuses.** A full year of data surfaced 8 matters whose `status` isn't yet in the
   disposition map (they currently land as `final_disposition = 'UNMAPPED'`). This is a designed
   tripwire — they need to be added to the `TERMINAL`/`IN_PROGRESS` maps in the gold notebook.
-- **Orchestration not yet automated.** The notebooks run manually; a scheduled weekly Databricks
+  (Expect more from the 2000→2026 backfill.)
+- **Databricks orchestration not yet automated.** The scrape side is scheduled (Cloud Scheduler →
+  Cloud Run Job, weekly); the notebooks still run manually — a scheduled weekly Databricks
   Workflow (silver → gold → view) is the next step.
 - **Data-quality checks pending.** Integrity assertions (unmapped statuses, orphan keys, name
   collisions) exist inline but should be lifted into a Great Expectations suite that fails the run

@@ -25,7 +25,7 @@ variable "project_id" {
 provider "google" {
   project = var.project_id
 
-  # Don't stamp a goog-terraform-provisioned label on adopted buckets (keeps the import clean).
+  # Don't stamp a goog-terraform-provisioned label on adopted buckets
   add_terraform_attribution_label = false
 }
 
@@ -41,14 +41,12 @@ resource "google_storage_bucket" "cotc_raw" {
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
 
-  # cotc_raw is a hierarchical-namespace (folder-enabled) bucket.
   hierarchical_namespace {
     enabled = true
   }
 
-  # Soft delete is explicitly OFF on this bucket (retention 0, not the 7-day default).
   soft_delete_policy {
-    retention_duration_seconds = 0
+    retention_duration_seconds = 604800
   }
 
   # this holds the scrape; don't let `terraform destroy` wipe it without an explicit opt-in.
