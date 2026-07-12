@@ -7,7 +7,7 @@
 # so one process = the intended 2 req/s politeness ceiling on sfgov.
 
 set -uo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."   # repo root — raw/, .venv/, and scrape/ live there
 
 PY=.venv/bin/python
 INGEST=2026-07-11            # one partition for the whole backfill (the real scrape date)
