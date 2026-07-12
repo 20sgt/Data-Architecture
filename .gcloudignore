@@ -12,6 +12,6 @@ sample/
 terraform/
 scrape/__pycache__/
 scrape/tests/
-backfill.sh
+scripts/
 README.md
 TODO.md

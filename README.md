@@ -96,22 +96,33 @@ in.
 │   ├── legistar_scrape.py      #   legislation slice
 │   ├── legistar_meetings.py    #   meeting slice
 │   ├── fetch.py                #   rate-limited HTTP + retry
-│   └── history_detail.py       #   roll-call vote parser
-├── transform/                  # Databricks notebooks (the lakehouse pipeline)
+│   ├── history_detail.py       #   roll-call vote parser
+│   └── tests/                  #   offline golden tests (run in CI)
+├── databricks/                 # Databricks notebooks (the lakehouse pipeline)
 │   ├── silver_autoloader_databricks.py    # bronze JSON → silver staging (Auto Loader)
+│   ├── silver_load_databricks.py          # silver loaders
+│   ├── silver_load_meetings_databricks.py
 │   ├── gold_merge_databricks.py           # silver → gold star (dedup + MERGE)
-│   └── gold_serving_view_databricks.py    # gold → member_vote_record serving view
+│   ├── gold_star_databricks.py            # gold star builders
+│   └── gold_dim_matter_databricks.py
+├── scripts/
+│   └── backfill.sh             # one-shot 2000→2026 deep-history scrape (resumable)
+├── terraform/                  # GCP IaC: buckets + weekly scrape (Cloud Run Job + Scheduler)
+├── Dockerfile                  # scraper image for the weekly Cloud Run Job
+├── entrypoint.sh               # container entrypoint (weekly meetings → matters window)
 ├── docs/
 │   ├── pipeline_design.md      # design rationale (ELT, incremental load, modeling decisions)
 │   └── architecture_diagrams.md# data-flow + ER diagrams (Mermaid)
 ├── erd/
 │   └── schema.dbml             # star-schema definition
 ├── frontend/
-│   └── Design System.html      # dashboard design system / mockup
+│   ├── Design System.html      # dashboard design system / mockup
+│   └── build_data.py           # demo-dashboard data builder
 ├── sample/                     # small sample of scraped JSON for local testing
 │   ├── matters/ingest_date=.../
 │   └── meetings/ingest_date=.../
 ├── requirements.txt
+├── TODO.md
 └── README.md
 ```
 
