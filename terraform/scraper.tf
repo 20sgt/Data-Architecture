@@ -8,7 +8,6 @@ locals {
   image  = "${local.region}-docker.pkg.dev/${var.project_id}/cotc/legistar-scraper:latest"
 }
 
-# APIs the scrape infra needs (enabled 2026-07-11; codified here, never disabled on destroy).
 resource "google_project_service" "scrape_apis" {
   for_each = toset([
     "run.googleapis.com",
@@ -28,9 +27,7 @@ resource "google_artifact_registry_repository" "cotc" {
   depends_on    = [google_project_service.scrape_apis]
 }
 
-# One identity for the whole weekly path: job runtime (writes bronze) and the
-# scheduler's OAuth caller (invokes the job). ponytail: split into two SAs if
-# anything beyond this pipeline ever reuses either half.
+# One identity for weekly path: job runtime (writes bronze) and scheduler's OAuth caller (invokes the job). 
 resource "google_service_account" "legistar" {
   account_id   = "sa-legistar-scraper"
   display_name = "Legistar weekly scraper (Cloud Run Job + Scheduler)"
@@ -83,7 +80,6 @@ resource "google_cloud_run_v2_job" "legistar_weekly" {
       }
     }
   }
-
   depends_on = [google_project_service.scrape_apis]
 }
 

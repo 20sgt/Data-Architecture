@@ -45,8 +45,6 @@ resource "google_storage_bucket" "cotc_raw" {
     enabled = true
   }
 
-  # 7-day undo for deletes/overwrites; bills only for soft-deleted bytes, so it's
-  # free on this append-only bucket. (Was explicitly 0 before 2026-07-11.)
   soft_delete_policy {
     retention_duration_seconds = 604800
   }
