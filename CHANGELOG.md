@@ -2,6 +2,19 @@
 
 Newest entries at the top.
 
+## [2026-07-12 21:26] — Silver validated against reference (increment 3 complete)
+
+**What:** Loaded the 2026-06-26 partition (869 matters / 112 meetings) into
+`bronze`, ran `dbt run --select staging`, and diffed all 8 `silver.stg_*` against
+the old notebook output (copied to `silver_ref`). **All 8 identical** (row counts
+equal, zero rows on either side of `exceptAll`, lineage cols excluded).
+**Why:** Proves the dbt flatten reproduces the PySpark flatten exactly — the
+riskiest part of the migration. Green light to build gold on top.
+**Files:** none (runtime validation via a scratch notebook; `silver_ref` and a
+small `bronze` load created in Databricks, not in the repo)
+**Notes:** Dedup was a no-op here (single scrape date) — the latest-wins logic
+gets exercised for real once multiple scrape dates are loaded in the bootstrap.
+
 ## [2026-07-12 21:19] — Correct catalog name: workspace -> corn_off_the_cob
 
 **What:** Point dbt profile, dbt source, and the bronze notebook at the real
