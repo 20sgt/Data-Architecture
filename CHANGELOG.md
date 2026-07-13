@@ -2,6 +2,22 @@
 
 Newest entries at the top.
 
+## [2026-07-12 21:19] — Correct catalog name: workspace -> corn_off_the_cob
+
+**What:** Point dbt profile, dbt source, and the bronze notebook at the real
+catalog `corn_off_the_cob`.
+**Why:** Reverses the catalog choice from the increment-1 planning (we picked
+`workspace` because the old notebooks hardcoded it). The live workspace has no
+`workspace` catalog — `SELECT current_catalog()` returned `corn_off_the_cob`
+(which the README had right all along). `dbt debug` passed earlier only because
+it tests connectivity, not catalog existence, so this would have failed at the
+first `dbt run`.
+**Files:** `dbt/profiles.yml.example`, `dbt/models/staging/_sources.yml`,
+`databricks/bronze_autoloader_databricks.py` (local `dbt/profiles.yml` updated
+too, gitignored)
+**Notes:** Lesson: verify object names against the live warehouse, not stale
+code comments.
+
 ## [2026-07-12 20:48] — Silver staging models in dbt (increment 3)
 
 **What:** Added the 8 silver staging models as dbt SQL, plus the `bronze` source

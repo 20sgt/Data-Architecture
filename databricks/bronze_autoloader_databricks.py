@@ -16,7 +16,7 @@
 
 # COMMAND ----------
 
-CATALOG, BRONZE = "workspace", "bronze"
+CATALOG, BRONZE = "corn_off_the_cob", "bronze"
 SRC = "gs://cotc_raw"                                      # the raw landing bucket
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{BRONZE}")
 spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{BRONZE}.checkpoints")

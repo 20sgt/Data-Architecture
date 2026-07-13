@@ -6,7 +6,7 @@ version: 2
 # full lineage graph (bronze -> silver -> gold).
 sources:
   - name: bronze
-    database: workspace     # in dbt, "database" is the top level -> the Unity Catalog catalog
+    database: corn_off_the_cob   # in dbt, "database" is the top level -> the Unity Catalog catalog
     schema: bronze
     tables:
       - name: matters        # one row per scraped matter, lists (actions/votes/...) still nested

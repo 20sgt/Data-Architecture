@@ -25,7 +25,7 @@ sf_legislation:
   outputs:
     dev:
       type: databricks
-      catalog: workspace     # our Unity Catalog catalog (top-level container)
+      catalog: corn_off_the_cob   # our Unity Catalog catalog (top-level container)
       schema: gold           # default schema, used only if a model doesn't set its own
       host: "{{ env_var('DBT_DATABRICKS_HOST') }}"
       http_path: "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"
