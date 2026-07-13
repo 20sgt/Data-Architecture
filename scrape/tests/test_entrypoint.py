@@ -3,7 +3,7 @@
 A fake `python` on PATH records each module invocation to a log, so the script's
 branching (including the month-boundary guard) runs with zero network/browser.
 Env overrides (WINDOW_FROM/INGEST_DATE) mean the GNU-date defaults never execute,
-so this also runs on macOS.f
+so this also runs on macOS.
 """
 
 import subprocess
