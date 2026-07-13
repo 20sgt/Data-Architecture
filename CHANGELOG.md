@@ -2,6 +2,21 @@
 
 Newest entries at the top.
 
+## [2026-07-12 21:44] — Serving view member_vote_record in dbt (increment 5)
+
+**What:** Reconstructed the `member_vote_record` serving view as a dbt model
+(materialized as a `view`): one row per vote, joining member (dim_person),
+legislation + outcome (dim_matter), acting body (dim_committee), and meeting
+(dim_meeting, LEFT).
+**Why:** It's what the dashboard queries; the original notebook was referenced in
+the README but never existed in git, so it was rebuilt from the README's
+description.
+**Files:** `dbt/models/gold/member_vote_record.sql`
+**Notes:** No reference to diff against (never existed) — validated by sanity
+check: `view_rows` = `fact_vote` rows (no fan-out) and zero NULL members. All
+joins LEFT so a vote is never dropped; dims are unique on their keys so no
+fan-out.
+
 ## [2026-07-12 21:41] — Gold star schema in dbt, validated (increment 4)
 
 **What:** Added an intermediate dedup layer (8 `int_*` views) + 9 gold models
