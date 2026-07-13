@@ -22,7 +22,7 @@ python -m scrape.legistar_meetings --current-month --from "$FROM" --to "$DATE" \
 # month's rows, so a window reaching into the previous month also needs the Playwright
 # year enumeration for FROM's year (chromium ships in this image). Dec->Jan works too:
 # FROM's year is the prior year, and the current-month pass covers the January side.
-# ponytail: a whole-year enumeration for <=7 days of rows, ~once a month; swap to
+# Tradeoff: a whole-year enumeration for <=7 days of rows, ~once a month; swap to
 # webapi /events window enumeration if that minute ever matters.
 if [ "${FROM%-*}" != "${DATE%-*}" ]; then
     echo ">> [1b] window spans months - year pass for ${FROM%%-*}"
