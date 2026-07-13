@@ -18,6 +18,18 @@ echo ">> [1/2] meetings  $FROM .. $DATE"
 python -m scrape.legistar_meetings --current-month --from "$FROM" --to "$DATE" \
     --raw-dir "$RAW_ROOT/meetings" --date "$DATE"
 
+# Month-boundary guard: the browserless "This Month" GET above only lists the current
+# month's rows, so a window reaching into the previous month also needs the Playwright
+# year enumeration for FROM's year (chromium ships in this image). Dec->Jan works too:
+# FROM's year is the prior year, and the current-month pass covers the January side.
+# ponytail: a whole-year enumeration for <=7 days of rows, ~once a month; swap to
+# webapi /events window enumeration if that minute ever matters.
+if [ "${FROM%-*}" != "${DATE%-*}" ]; then
+    echo ">> [1b] window spans months - year pass for ${FROM%%-*}"
+    python -m scrape.legistar_meetings --year "${FROM%%-*}" --from "$FROM" --to "$DATE" \
+        --raw-dir "$RAW_ROOT/meetings" --date "$DATE"
+fi
+
 echo ">> [2/2] matters   $FROM .. $DATE  (File-Created window + agenda feed)"
 python -m scrape.legistar_scrape --from "$FROM" --to "$DATE" \
     --agenda-bronze "$RAW_ROOT/meetings/ingest_date=$DATE" \
