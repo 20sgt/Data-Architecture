@@ -1,0 +1,13 @@
+version: 2
+
+# "Sources" tell dbt about tables that exist BEFORE dbt runs — here, the two
+# bronze tables the Auto Loader notebook lands. Declaring them lets us reference
+# them as {{ source('bronze', 'matters') }} in models, and lets dbt draw the
+# full lineage graph (bronze -> silver -> gold).
+sources:
+  - name: bronze
+    database: workspace     # in dbt, "database" is the top level -> the Unity Catalog catalog
+    schema: bronze
+    tables:
+      - name: matters        # one row per scraped matter, lists (actions/votes/...) still nested
+      - name: meetings       # one row per scraped meeting, agenda_items/documents still nested

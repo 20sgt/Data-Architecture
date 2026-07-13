@@ -2,6 +2,21 @@
 
 Newest entries at the top.
 
+## [2026-07-12 20:48] — Silver staging models in dbt (increment 3)
+
+**What:** Added the 8 silver staging models as dbt SQL, plus the `bronze` source
+declaration, reproducing the old notebook's flatten step. Also fixed the `sk`
+macro (Jinja has no `*args`; extra args arrive as `varargs`).
+**Why:** dbt now owns bronze→silver. These models unnest the nested bronze
+records (matters→actions→votes, meetings→agenda_items, etc.) into flat tables.
+**Files:** `dbt/models/staging/_sources.yml`, `dbt/models/staging/stg_*.sql` (8),
+`dbt/macros/surrogate_key.sql` (fix)
+**Notes:** Unnesting uses `LATERAL VIEW (pos)explode`. `action_seq` is taken from
+`posexplode` position so it matches across `stg_actions`/`stg_votes` (the gold
+join key). All 8 pass `dbt compile`; still UNVALIDATED against real data — next
+step is a small one-partition bronze load to diff against the old notebook
+tables before the full backfill bootstrap.
+
 ## [2026-07-12 19:52] — Bronze rework: Auto Loader lands nested Delta (increment 2)
 
 **What:** Rewrote the Auto Loader notebook so it only *ingests* — landing whole

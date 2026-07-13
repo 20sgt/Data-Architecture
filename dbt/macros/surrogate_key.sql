@@ -17,7 +17,11 @@
   Use it inside a model like this:
         {{ sk('matter_file') }}                as matter_sk
         {{ sk('history_id', 'person_id') }}    as vote_sk
+
+  Note: dbt's templating language is Jinja, not Python — it has no `*args` in a
+  macro signature. Any extra arguments you pass are gathered into a built-in
+  variable called `varargs`, which is what we join together below.
 #}
-{% macro sk(*columns) -%}
-    xxhash64(concat_ws('|', {{ columns | join(', ') }}))
+{% macro sk() -%}
+    xxhash64(concat_ws('|', {{ varargs | join(', ') }}))
 {%- endmacro %}
