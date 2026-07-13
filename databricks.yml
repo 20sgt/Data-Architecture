@@ -1,0 +1,90 @@
+# Databricks Asset Bundle — defines the weekly transform Job as code.
+#
+# A "bundle" = this file (describing resources) + the code it runs (our bronze
+# notebook and the dbt project, both already in this repo).
+#
+#   databricks bundle validate        # check this file (like `dbt compile`)
+#   databricks bundle deploy -t dev   # create/update the Job in your workspace
+#   databricks bundle run weekly_transform -t dev   # trigger a run by hand
+#
+# NOTE: deploy uses Databricks' management APIs, so it needs a token with API
+# scope (your "BI Tools" SQL token may be rejected — generate a broader one if so).
+
+bundle:
+  name: sf-legislation-lakehouse
+
+# Values that differ by environment or that need confirming in your workspace.
+# Fill the TODOs; the rest are best-guess defaults to verify.
+variables:
+  warehouse_id:
+    description: SQL warehouse the dbt task runs against (the id from its http_path).
+    default: aa8398aa70d15ec5          # from /sql/1.0/warehouses/aa8398aa70d15ec5
+  ingest_service_account:
+    description: GCP service account email the classic cluster uses to read gs://cotc_raw.
+    default: TODO-fill-in@corn-off-the-cobb.iam.gserviceaccount.com
+  ingest_node_type:
+    description: GCP VM type for the ingest cluster (see Compute > Create cluster).
+    default: n2-standard-4
+  ingest_spark_version:
+    description: Databricks runtime for the ingest cluster (see the runtime dropdown).
+    default: 15.4.x-scala2.12
+
+targets:
+  dev:
+    mode: development     # prefixes names with your user AND auto-PAUSES the schedule
+    default: true
+    workspace:
+      host: https://8259559357598229.9.gcp.databricks.com
+
+resources:
+  jobs:
+    weekly_transform:
+      name: sf-legislation-weekly-transform
+
+      # Wed 08:00 America/Los_Angeles, after the Wed 06:00 scrape.
+      # (In the `dev` target above, mode: development forces this PAUSED so it
+      #  won't fire on schedule while we test — we trigger it by hand instead.)
+      schedule:
+        quartz_cron_expression: "0 0 8 ? * WED"
+        timezone_id: America/Los_Angeles
+        pause_status: UNPAUSED
+
+      job_clusters:
+        - job_cluster_key: ingest_cluster
+          new_cluster:
+            spark_version: ${var.ingest_spark_version}
+            node_type_id: ${var.ingest_node_type}
+            num_workers: 2
+            # A CLASSIC cluster with this service account is what can read the
+            # external GCS bucket (serverless can't).
+            gcp_attributes:
+              google_service_account: ${var.ingest_service_account}
+
+      tasks:
+        # 1) Ingest new files into bronze (classic cluster, reads gs://cotc_raw).
+        - task_key: bronze_ingest
+          job_cluster_key: ingest_cluster
+          notebook_task:
+            notebook_path: databricks/bronze_autoloader_databricks.py
+
+        # 2) Transform silver -> gold -> view with dbt (serverless SQL warehouse).
+        - task_key: dbt_build
+          depends_on:
+            - task_key: bronze_ingest
+          dbt_task:
+            project_directory: dbt
+            commands:
+              - "dbt deps"
+              - "dbt build"
+            warehouse_id: ${var.warehouse_id}
+          # The dbt CLI process itself runs on this small serverless environment;
+          # the SQL it issues runs on warehouse_id above.
+          environment_key: dbt_cli
+
+      # Serverless environment that hosts the dbt CLI for the dbt_task.
+      environments:
+        - environment_key: dbt_cli
+          spec:
+            client: "1"
+            dependencies:
+              - dbt-databricks==1.12.2
