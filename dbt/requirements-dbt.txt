@@ -1,0 +1,9 @@
+# dbt for the transformation layer. Installed into the project's .venv, separate
+# from the scraper's requirements.txt because dbt runs in a different context
+# (it talks to a Databricks SQL warehouse, not the scraper's environment).
+#
+# Install:  pip install -r dbt/requirements-dbt.txt
+#
+# dbt-databricks is the adapter (the piece that teaches dbt how to speak to
+# Databricks); it pulls in dbt-core itself automatically.
+dbt-databricks==1.12.2

@@ -1,0 +1,38 @@
+# This is dbt's main settings file. It names the project, points dbt at the
+# connection settings, and says where each table should be built.
+
+name: 'sf_legislation'
+version: '1.0.0'
+config-version: 2
+
+# The name of the connection block dbt should use (defined in profiles.yml).
+profile: 'sf_legislation'
+
+# Where dbt looks for each kind of file. These are the standard locations —
+# you rarely change them.
+model-paths: ["models"]       # the SQL files that build our tables/views
+macro-paths: ["macros"]       # reusable snippets of SQL (like our surrogate-key helper)
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+
+# Folders dbt is allowed to wipe and regenerate (compiled SQL, downloaded packages).
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# How our tables get built.
+# We put our SQL files into two folders and set a rule for each:
+#   models/staging  -> land in the `silver` schema  (the cleaned/flattened tables)
+#   models/gold     -> land in the `gold` schema    (the final star schema)
+# "materialized: table" means "build a real, stored table" (a view would be
+# recomputed every time it's queried instead). We start with plain tables
+# everywhere; later we switch the biggest ones to update-only ("incremental").
+models:
+  sf_legislation:
+    staging:
+      +schema: silver
+      +materialized: table
+    gold:
+      +schema: gold
+      +materialized: table
