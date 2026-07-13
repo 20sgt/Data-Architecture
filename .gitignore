@@ -22,8 +22,17 @@ __pycache__/
 # slop
 .claude
 
+# dbt: throwaway build output, downloaded packages, logs, and the REAL
+# connection file (holds a secret token — commit only profiles.yml.example)
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles.yml
+dbt/.env
+
 # Terraform local artifacts (state lives in gs://cotc-tfstate; plans are throwaway)
 terraform/.terraform/
 terraform/tfplan*
 *.tfstate
 *.tfstate.*
+dbt/.user.yml
