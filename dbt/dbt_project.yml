@@ -33,6 +33,9 @@ models:
     staging:
       +schema: silver
       +materialized: table
+    intermediate:
+      +schema: silver
+      +materialized: view      # saved queries (dedup steps), not stored data copies
     gold:
       +schema: gold
       +materialized: table

@@ -2,6 +2,23 @@
 
 Newest entries at the top.
 
+## [2026-07-12 21:41] — Gold star schema in dbt, validated (increment 4)
+
+**What:** Added an intermediate dedup layer (8 `int_*` views) + 9 gold models
+(5 dims, 2 facts, 2 bridges), reproducing `gold_merge`. `dbt run` builds all 25
+models; diffed all 9 gold tables against the notebook output (`gold_ref`, 869-
+matter partition) — **all 9 identical**.
+**Why:** dbt now owns silver→gold end to end. The xxhash64 key macro made a
+byte-for-byte diff possible, proving the rewrite.
+**Files:** `dbt/dbt_project.yml` (intermediate config), `dbt/models/intermediate/*.sql`
+(8), `dbt/models/gold/*.sql` (9)
+**Notes:** Latest-wins dedup lives in the `int_*` layer; child tables filtered via
+LEFT SEMI JOIN. Stable fact keys + `qualify row_number()` reproduce the notebook's
+dropDuplicates. Caught an ambiguous `matter_file` ref in `dim_matter` (must
+qualify columns after a join). All phase-1 `table`; converting the hot tables to
+incremental `merge` is increment 7. Dedup still only trivially exercised (single
+scrape date) until the bootstrap.
+
 ## [2026-07-12 21:26] — Silver validated against reference (increment 3 complete)
 
 **What:** Loaded the 2026-06-26 partition (869 matters / 112 meetings) into
