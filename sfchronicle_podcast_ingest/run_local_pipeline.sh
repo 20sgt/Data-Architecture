@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Local full pipeline (free inference): ingest → Whisper → enrich → silver.
+# Safe to re-run: each step skips work that is already done.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,11 +17,15 @@ if [[ ! -x "${PYTHON}" ]]; then
 fi
 
 {
-  echo "===== Weekly podcast pipeline started: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
+  echo "===== Local podcast pipeline started: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
   echo "Using Python: ${PYTHON}"
+  echo "--- ingest ---"
   "${PYTHON}" ingest.py
+  echo "--- transcribe (local Whisper, \$0 STT) ---"
   "${PYTHON}" transcribe.py
+  echo "--- enrich (rule-based, \$0) ---"
   "${PYTHON}" enrich.py
+  echo "--- silver (SQLite + GCS JSONL, \$0 APIs) ---"
   "${PYTHON}" silver.py
-  echo "===== Weekly podcast pipeline finished: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
-} 2>&1 | tee -a "${LOG_DIR}/weekly_pipeline.log"
+  echo "===== Local podcast pipeline finished: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
+} 2>&1 | tee -a "${LOG_DIR}/local_pipeline.log"

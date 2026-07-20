@@ -3,6 +3,10 @@
 __pycache__/
 *.pyc
 *.json
+!sfchronicle_podcast_ingest/data/representatives.json
 .DS_Store
 logs/
 .pytest_cache/
+sfchronicle_podcast_ingest/data/*.sqlite
+sfchronicle_podcast_ingest/data/*.sqlite-*
+

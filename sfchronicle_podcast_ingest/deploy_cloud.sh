@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy weekly podcast ingest + transcription as a Cloud Run Job + Cloud Scheduler.
+# Deploy weekly podcast ingest as a Cloud Run Job + Cloud Scheduler.
+# Transcription is local Whisper only (no Google Speech-to-Text charges).
 # Usage:
 #   ./deploy_cloud.sh
 #   ./deploy_cloud.sh --execute-now
@@ -47,7 +48,6 @@ echo "Enabling required APIs..."
   cloudscheduler.googleapis.com \
   cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
-  speech.googleapis.com \
   storage.googleapis.com \
   iam.googleapis.com
 
@@ -55,11 +55,6 @@ echo "Ensuring service account IAM roles..."
 "${GCLOUD}" projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/storage.objectAdmin" \
-  --condition=None >/dev/null
-
-"${GCLOUD}" projects add-iam-policy-binding "${PROJECT_ID}" \
-  --member="serviceAccount:${SERVICE_ACCOUNT}" \
-  --role="roles/speech.client" \
   --condition=None >/dev/null
 
 "${GCLOUD}" projects add-iam-policy-binding "${PROJECT_ID}" \
@@ -76,20 +71,20 @@ if "${GCLOUD}" run jobs describe "${JOB_NAME}" --region "${REGION}" >/dev/null 2
     --image "${IMAGE}" \
     --region "${REGION}" \
     --service-account "${SERVICE_ACCOUNT}" \
-    --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPTION_LANGUAGE_CODE=en-US" \
+    --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPT_PREFIX=podcasts/transcripts_whisper" \
     --memory 2Gi \
-    --cpu 2 \
-    --task-timeout 24h \
+    --cpu 1 \
+    --task-timeout 2h \
     --max-retries 1
 else
   "${GCLOUD}" run jobs create "${JOB_NAME}" \
     --image "${IMAGE}" \
     --region "${REGION}" \
     --service-account "${SERVICE_ACCOUNT}" \
-    --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPTION_LANGUAGE_CODE=en-US" \
+    --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPT_PREFIX=podcasts/transcripts_whisper" \
     --memory 2Gi \
-    --cpu 2 \
-    --task-timeout 24h \
+    --cpu 1 \
+    --task-timeout 2h \
     --max-retries 1
 fi
 

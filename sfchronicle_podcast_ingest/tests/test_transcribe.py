@@ -44,27 +44,31 @@ class FakeStorageClient:
 
 
 def test_transcript_blob_path_matches_audio_path():
-    """Purpose: verify each MP3 maps to one predictable transcript JSON path."""
+    """Purpose: verify each MP3 maps to the NEW Whisper-only transcript path."""
     assert (
         transcribe.transcript_blob_path("podcasts/audio/datebook/episode-123.mp3")
-        == "podcasts/transcripts/datebook/episode-123.json"
+        == "podcasts/transcripts_whisper/datebook/episode-123.json"
     )
 
 
-def test_combine_transcript_joins_recognition_segments():
-    """Purpose: verify segmented Speech-to-Text responses become one readable transcript."""
-    response = SimpleNamespace(
-        results=[
-            SimpleNamespace(
-                alternatives=[SimpleNamespace(transcript="First sentence.", confidence=0.9)]
-            ),
-            SimpleNamespace(
-                alternatives=[SimpleNamespace(transcript="Second sentence.", confidence=0.8)]
-            ),
-        ]
-    )
+def test_transcript_prefix_is_not_legacy():
+    """Purpose: ensure new runs never target the undisturbed legacy prefix."""
+    assert transcribe.TRANSCRIPT_PREFIX != transcribe.LEGACY_TRANSCRIPT_PREFIX
+    assert transcribe.TRANSCRIPT_PREFIX == "podcasts/transcripts_whisper"
 
-    assert transcribe.combine_transcript(response) == "First sentence. Second sentence."
+
+def test_combine_segments_joins_whisper_segments():
+    """Purpose: verify Whisper segment texts are combined into one transcript."""
+    segments = [
+        SimpleNamespace(text=" First sentence. "),
+        SimpleNamespace(text="Second sentence."),
+    ]
+    assert transcribe.combine_segments(segments) == "First sentence. Second sentence."
+
+
+def test_normalize_language_code_strips_region():
+    """Purpose: verify en-US env values still work with Whisper's en language code."""
+    assert transcribe.normalize_language_code("en-US") == "en"
 
 
 def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
@@ -74,7 +78,12 @@ def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
             FakeBlob("podcasts/audio/show/needs-transcript.mp3"),
             FakeBlob("podcasts/audio/show/already-transcribed.mp3"),
             FakeBlob("podcasts/audio/show/ignore.txt"),
+            # Legacy path must be ignored for skip/write decisions.
             FakeBlob("podcasts/transcripts/show/already-transcribed.json", exists=True),
+            FakeBlob(
+                "podcasts/transcripts_whisper/show/already-transcribed.json",
+                exists=True,
+            ),
         ]
     )
 
@@ -92,13 +101,14 @@ def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
         "get_storage_client",
         lambda config: FakeStorageClient(bucket),
     )
-    monkeypatch.setattr(transcribe, "get_speech_client", lambda config: object())
+    monkeypatch.setattr(transcribe, "load_whisper_model", lambda: object())
     monkeypatch.setattr(
         transcribe,
         "transcribe_audio_blob",
         lambda **kwargs: {
             "audio_gcs_uri": f"gs://{kwargs['bucket_name']}/{kwargs['audio_blob_name']}",
             "language_code": kwargs["language_code"],
+            "engine": "faster-whisper",
             "transcript": "Generated transcript.",
             "results": [],
             "transcribed_at": "2026-06-27T00:00:00+00:00",
@@ -112,7 +122,13 @@ def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
     assert stats["skipped"] == 1
     assert stats["errors"] == 0
 
-    new_transcript = bucket.blobs["podcasts/transcripts/show/needs-transcript.json"]
+    new_transcript = bucket.blobs[
+        "podcasts/transcripts_whisper/show/needs-transcript.json"
+    ]
     transcript_record = json.loads(new_transcript.uploaded_string)
     assert transcript_record["transcript"] == "Generated transcript."
+    assert transcript_record["engine"] == "faster-whisper"
     assert new_transcript.content_type == "application/json"
+    # Legacy object must remain untouched (no upload performed on it).
+    legacy = bucket.blobs["podcasts/transcripts/show/already-transcribed.json"]
+    assert legacy.uploaded_string is None

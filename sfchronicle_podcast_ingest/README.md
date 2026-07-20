@@ -8,11 +8,27 @@ This project downloads podcast episodes (SF Chronicle Megaphone feeds + Voice of
 podcasts/
   audio/{show_slug}/{episode_id}.mp3
   metadata/{show_slug}/{episode_id}.json
-  transcripts/{show_slug}/{episode_id}.json
+  transcripts/{show_slug}/{episode_id}.json          # legacy (undisturbed)
+  transcripts_whisper/{show_slug}/{episode_id}.json  # Whisper-only ($0 STT)
+  enrichment/{show_slug}/{episode_id}.json           # bills / people / topics
+  silver/
+    episodes.jsonl
+    episode_bills.jsonl
+    episode_topics.jsonl
+    episode_people.jsonl
+    episode_stances.jsonl
+    episode_claims.jsonl
+    _manifest.json
   _manifest.json
 ```
 
-The ingest step uses `_manifest.json` and stable episode IDs to avoid duplicate audio uploads. The transcription step checks whether `podcasts/transcripts/{show_slug}/{episode_id}.json` exists before calling Speech-to-Text.
+Local query DB (free):
+
+```text
+data/podcast_silver.sqlite
+```
+
+The ingest step uses `_manifest.json` and stable episode IDs to avoid duplicate audio uploads. New transcription writes only to `podcasts/transcripts_whisper/` using **local Whisper** (free inference). It does **not** use Google Cloud Speech-to-Text and does **not** read or overwrite `podcasts/transcripts/`.
 
 ## Setup
 
@@ -28,44 +44,113 @@ Make sure `.env` contains:
 GCP_PROJECT_ID=corn-off-the-cobb
 GCP_BUCKET_NAME=podcasts-audio-files
 GCP_SERVICE_ACCOUNT_KEY=/path/to/service-account.json
-TRANSCRIPTION_LANGUAGE_CODE=en-US
+TRANSCRIPTION_LANGUAGE_CODE=en
+WHISPER_MODEL=base
+TRANSCRIPT_PREFIX=podcasts/transcripts_whisper
 ```
 
 On Cloud Run, omit `GCP_SERVICE_ACCOUNT_KEY` and use the attached service account instead.
 
-## Run Manually (local)
+## Pipeline overview (all $0 paid APIs)
 
-Always use the project venv Python (not Homebrew `python3`):
+| Step | Script | Cost | Where |
+|------|--------|------|-------|
+| Ingest RSS → GCS | `ingest.py` | GCS storage only | Local or Cloud |
+| Transcribe | `transcribe.py` | Local CPU Whisper | **Local only** |
+| Enrich bills/people/topics | `enrich.py` | Rule-based, free | Local or Cloud |
+| Silver query tables | `silver.py` | SQLite + GCS JSONL | Local or Cloud |
+
+## Run locally (recommended full loop)
 
 ```bash
+chmod +x run_*.sh
+./run_local_pipeline.sh
+# or step by step:
 ./.venv/bin/python3 ingest.py
-./.venv/bin/python3 transcribe.py --limit 1
-./run_transcribe.sh --limit 1
-./run_weekly_pipeline.sh
+./run_transcribe.sh
+./run_enrich.sh
+./run_silver.sh
 ```
 
-Transcription of a full podcast can take several minutes per episode.
+Query the silver layer (no cloud needed after build):
 
-## Run Weekly in the Cloud (recommended)
+```bash
+./.venv/bin/python3 query_silver.py
+./.venv/bin/python3 query_silver.py --bill prop_c
+./.venv/bin/python3 query_silver.py --topic homelessness
+./.venv/bin/python3 query_silver.py --person scott_wiener
+./.venv/bin/python3 query_silver.py --topic housing --show fixing-our-city
+```
 
-This deploys a **Cloud Run Job** plus a **Cloud Scheduler** trigger for Sundays at 3:00 AM Pacific.
+Example SQL against `data/podcast_silver.sqlite`:
+
+```sql
+SELECT e.title, b.bill_ref, b.quote
+FROM episode_bills b
+JOIN episodes e USING (episode_id)
+WHERE b.bill_normalized = 'prop_c' AND e.usable = 1;
+```
+
+Normalized keys ignore spelling variants (`Prop C` / `Proposition C` → `prop_c`).
+
+## Enrich transcripts for querying
+
+After transcription, run enrichment to extract bills, people, topics, stance, and claims:
+
+```bash
+./run_enrich.sh --limit 10
+./run_enrich.sh --show fifth-and-mission --limit 20
+./run_enrich.sh
+```
+
+People lexicon: `data/representatives.json` (edit to add supervisors / reps). Output lands in:
+
+```text
+podcasts/enrichment/{show_slug}/{episode_id}.json
+```
+
+Each enrichment file includes:
+- `bills` (Prop/AB/SB/ordinance/file refs + quote windows + `normalized`)
+- `people` (known officials/hosts + contextual names + `normalized`)
+- `topics` (homelessness, housing, transit, covid, etc.)
+- `stances` (supports / opposes / concerned / neutral)
+- `claims` (sentence-level statements tied to topics)
+- `summary_fields` for quick filtering
+- `quality` (`usable=false` for bad ASR/music-only transcripts)
+
+This step is local/rule-based and does not call paid APIs.
+
+## Silver layer
+
+```bash
+./run_silver.sh                 # SQLite + GCS JSONL
+./run_silver.sh --local-only    # laptop SQLite only
+./run_silver.sh --gcs-only      # bucket tables only (Cloud Run)
+```
+
+## Run weekly in the cloud (after Whisper transcripts exist)
+
+Cloud Scheduler runs Sundays at 3:00 AM Pacific:
+
+1. Ingest new podcasts
+2. Enrich any episodes that already have Whisper transcripts
+3. Rebuild silver JSONL in GCS
+
+Whisper stays local so you avoid Speech-to-Text charges. Typical weekly flow:
+
+1. Cloud job ingests + enriches + rebuilds silver for whatever transcripts exist
+2. On your laptop (when convenient): `./run_transcribe.sh` then `./run_enrich.sh` then `./run_silver.sh`
 
 ```bash
 chmod +x deploy_cloud.sh run_cloud_pipeline.sh
 ./deploy_cloud.sh
 ```
 
-To deploy and run one job immediately:
-
-```bash
-./deploy_cloud.sh --execute-now
-```
-
 What the deploy script does:
 
-1. Enables Cloud Run, Cloud Scheduler, Cloud Build, Speech-to-Text, and Storage APIs
-2. Grants the service account Storage Object Admin + Speech Client
-3. Builds a Docker image and pushes it to Container Registry
+1. Enables Cloud Run, Cloud Scheduler, Cloud Build, and Storage APIs
+2. Grants the service account Storage Object Admin
+3. Builds/pushes the Docker image (ingest + enrich + silver)
 4. Creates/updates Cloud Run Job `podcast-weekly-pipeline`
 5. Creates/updates Cloud Scheduler job `podcast-weekly-trigger` (`0 3 * * 0`)
 
@@ -90,7 +175,7 @@ $GCLOUD scheduler jobs describe podcast-weekly-trigger --location us-west1
 ./.venv/bin/python3 -m pytest -q
 ```
 
-## Schedule Weekly on macOS (optional local backup)
+## Schedule weekly on macOS (optional local backup)
 
 The included `com.sfchronicle.podcast_pipeline.plist` runs every Sunday at 3:00 AM local time.
 

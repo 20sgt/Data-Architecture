@@ -5,10 +5,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-cloud.txt .
+RUN pip install --no-cache-dir -r requirements-cloud.txt
 
-COPY ingest.py transcribe.py run_cloud_pipeline.sh ./
+# Ingest + enrich + silver (no Whisper in cloud — STT stays local/$0).
+COPY ingest.py enrich.py silver.py run_cloud_pipeline.sh ./
+COPY data/representatives.json ./data/representatives.json
 RUN chmod +x run_cloud_pipeline.sh
 
 CMD ["./run_cloud_pipeline.sh"]
