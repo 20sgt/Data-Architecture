@@ -98,7 +98,7 @@ def run_autoloader(name, schema):
          .option("checkpointLocation", f"{CKPT}/{name}/write")
          .trigger(availableNow=True).start())
     q.awaitTermination()
-    n = sum(p.get("numInputRows", 0) for p in q.recentProgress)
+    n = sum((p.get("numInputRows") or 0) for p in q.recentProgress)   # `or 0`: some batches report None
     print(f"{name}: landed {n} new files into {CATALOG}.{BRONZE}.{name}")
 
 # COMMAND ----------
