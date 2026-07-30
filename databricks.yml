@@ -19,9 +19,6 @@ variables:
   warehouse_id:
     description: SQL warehouse the dbt task runs against (the id from its http_path).
     default: aa8398aa70d15ec5          # from /sql/1.0/warehouses/aa8398aa70d15ec5
-  ingest_service_account:
-    description: GCP service account email the classic cluster uses to read gs://cotc_raw.
-    default: TODO-fill-in@corn-off-the-cobb.iam.gserviceaccount.com
   ingest_node_type:
     description: GCP VM type for the ingest cluster (see Compute > Create cluster).
     default: n2-standard-4
@@ -55,10 +52,10 @@ resources:
             spark_version: ${var.ingest_spark_version}
             node_type_id: ${var.ingest_node_type}
             num_workers: 2
-            # A CLASSIC cluster with this service account is what can read the
-            # external GCS bucket (serverless can't).
-            gcp_attributes:
-              google_service_account: ${var.ingest_service_account}
+            # A CLASSIC (non-serverless) cluster is what can read the external GCS
+            # bucket. No google_service_account set -> it uses the workspace
+            # default SA, which already has bucket access (same as your
+            # interactive cluster).
 
       tasks:
         # 1) Ingest new files into bronze (classic cluster, reads gs://cotc_raw).
