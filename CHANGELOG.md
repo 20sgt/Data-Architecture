@@ -2,6 +2,24 @@
 
 Newest entries at the top.
 
+## [2026-07-30 20:51] — Historical bootstrap loaded + disposition map expanded (increment 6)
+
+**What:** Ran the one-time full bootstrap. Auto Loader landed the whole bucket into
+bronze (39,723 matters / 4,854 meetings, one row per file, no dupes), then
+`dbt build` produced the full gold on 26 years of data: dim_matter 38,724,
+fact_vote 587,165, fact_matter_action 179,247, **0 orphans**. The backfill surfaced
+13 previously-unseen statuses (249 UNMAPPED matters); **expanded the disposition
+taxonomy** with distinct terminal values `failed`/`vetoed`/`withdrawn` and classified
+all 13 — **UNMAPPED is now 0**.
+**Why:** Goal 3 (process the historical backfill). The UNMAPPED tripwire caught real
+new statuses instead of silently mislabeling them.
+**Files:** `dbt/models/gold/dim_matter.sql` (final_disposition + lifecycle maps).
+**Notes:** Latest-wins dedup collapsed ~1,000 multi-scrape matters (39,723 bronze
+rows → 38,724 distinct matters) — first real exercise of that logic. 3 low-volume
+judgment-call statuses (`litigation-attorney`, `for immediate adoption`, `completed`)
+are flagged in-code for later domain review. Full gold build ran in 45s on the
+serverless SQL warehouse. Also fixed a None-guard bug in the bronze row-count print.
+
 ## [2026-07-12 21:44] — Serving view member_vote_record in dbt (increment 5)
 
 **What:** Reconstructed the `member_vote_record` serving view as a dbt model

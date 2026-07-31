@@ -24,15 +24,25 @@ base as (
             when m.status is null then 'in_progress'
             when lower(trim(m.status)) in (
                 'passed', 'approved', 'adopted', 'finally passed',
-                'ordinance enacted', 'mayor approved'
+                'ordinance enacted', 'mayor approved', 'final passage, consent'
             ) then 'passed'
-            when lower(trim(m.status)) = 'filed'  then 'filed'
+            when lower(trim(m.status)) in ('filed', 'discussed and filed', 'completed') then 'filed'
             when lower(trim(m.status)) = 'killed' then 'killed'
+            -- distinct terminal-not-passed outcomes (kept separate for dashboard detail):
+            when lower(trim(m.status)) in ('failed', 'disapproved') then 'failed'
+            when lower(trim(m.status)) = 'vetoed'    then 'vetoed'
+            when lower(trim(m.status)) = 'withdrawn' then 'withdrawn'
             when lower(trim(m.status)) in (
                 '30 day rule', 'consent agenda', 'first reading', 'first reading, consent',
                 'mayors office', 'new business', 'pending committee action',
                 'scheduled for committee hearing', 'unfinished business-final passage',
-                'pending board action', 'assigned', 'continued', 'special order', 'in committee'
+                'pending board action', 'assigned', 'continued', 'special order', 'in committee',
+                -- added from the 26-year backfill:
+                'unfinished business', 'unfinished business-first reading', 'introduced', 'heard',
+                -- JUDGMENT CALLS (low volume; revisit if a domain owner disagrees):
+                --   litigation-attorney -> treated as still-active (with City Attorney)
+                --   for immediate adoption -> queued to adopt, not yet adopted
+                'litigation-attorney', 'for immediate adoption'
             ) then 'in_progress'
             else 'UNMAPPED'
         end as final_disposition
@@ -49,9 +59,10 @@ select
     b.in_control,
     b.status,
     case
-        when b.final_disposition = 'passed'            then 'passed'
-        when b.final_disposition in ('filed', 'killed') then 'terminal_other'
-        when b.final_disposition = 'in_progress'       then 'in_progress'
+        when b.final_disposition = 'passed' then 'passed'
+        when b.final_disposition in ('filed', 'killed', 'failed', 'vetoed', 'withdrawn')
+            then 'terminal_other'
+        when b.final_disposition = 'in_progress' then 'in_progress'
         else 'UNMAPPED'
     end as lifecycle,
     b.final_disposition,
