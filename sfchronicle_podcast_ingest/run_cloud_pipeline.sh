@@ -1,28 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Cloud weekly job (no Speech-to-Text / no paid LLM):
+# Cloud weekly job (scheduled only — Sunday 03:00 PT via Cloud Scheduler):
 #   1) ingest new episodes into GCS
-#   2) enrich any Whisper transcripts that already exist
-#   3) rebuild silver JSONL tables in GCS
+#   2) Whisper-transcribe missing audio with hard spend guards
+#   3) enrich missing enrichment JSON
+#   4) rebuild silver JSONL in GCS
 #
-# Transcription stays local (Whisper). If no new transcripts exist yet,
-# enrich/silver simply skip or rebuild from what is already there.
+# No Google Speech-to-Text. Whisper = faster-whisper tiny on CPU.
+# Spend caps (defaults): max 5 episodes, 20 minutes, ~$0.25 est. Cloud Run.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
 echo "===== Cloud podcast pipeline started: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
 echo "Using Python: $(command -v python)"
+echo "WHISPER_MODEL=${WHISPER_MODEL:-tiny} device=${WHISPER_DEVICE:-cpu}"
+echo "Guards: MAX_EPISODES=${WHISPER_MAX_EPISODES:-5} MAX_RUNTIME_MIN=${WHISPER_MAX_RUNTIME_MINUTES:-20} BUDGET_USD=${WHISPER_BUDGET_USD:-0.25}"
 
 echo "--- ingest ---"
 python ingest.py
 
-echo "--- enrich (only transcripts already in transcripts_whisper/) ---"
+echo "--- transcribe (budget-limited Whisper; \$0 Speech-to-Text) ---"
+python transcribe.py
+
+echo "--- enrich ---"
 python enrich.py
 
-echo "--- silver (GCS JSONL only; SQLite is local) ---"
+echo "--- silver (GCS JSONL) ---"
 python silver.py --gcs-only
 
-echo "Skipping cloud Whisper (run locally via ./run_transcribe.sh — \$0 STT)."
 echo "===== Cloud podcast pipeline finished: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="

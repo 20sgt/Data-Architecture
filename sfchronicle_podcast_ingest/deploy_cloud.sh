@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy weekly podcast ingest as a Cloud Run Job + Cloud Scheduler.
-# Transcription is local Whisper only (no Google Speech-to-Text charges).
+# Deploy weekly podcast pipeline as a Cloud Run Job + Cloud Scheduler.
+# Uses faster-whisper (tiny/CPU) on Cloud Run.
+# Sized for cheapest weekly catch-up (few new episodes), not full historical backfill.
 # Usage:
 #   ./deploy_cloud.sh
 #   ./deploy_cloud.sh --execute-now
@@ -65,27 +66,30 @@ echo "Ensuring service account IAM roles..."
 echo "Building and pushing image ${IMAGE}..."
 "${GCLOUD}" builds submit --tag "${IMAGE}" .
 
-echo "Creating/updating Cloud Run Job..."
+echo "Creating/updating Cloud Run Job (1 CPU / 2Gi, budget-capped Whisper)..."
+# Hard Cloud Run wall clock = 30m so a runaway cannot burn hours.
+# App-level guards also stop Whisper early (episodes / minutes / \$ budget).
+ENV_VARS="GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPT_PREFIX=podcasts/transcripts_whisper,WHISPER_MODEL=tiny,WHISPER_DEVICE=cpu,WHISPER_COMPUTE_TYPE=int8,WHISPER_MAX_EPISODES=5,WHISPER_MAX_RUNTIME_MINUTES=20,WHISPER_BUDGET_USD=0.25,WHISPER_HOURLY_RATE_USD=0.10"
 if "${GCLOUD}" run jobs describe "${JOB_NAME}" --region "${REGION}" >/dev/null 2>&1; then
   "${GCLOUD}" run jobs update "${JOB_NAME}" \
     --image "${IMAGE}" \
     --region "${REGION}" \
     --service-account "${SERVICE_ACCOUNT}" \
-    --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPT_PREFIX=podcasts/transcripts_whisper" \
+    --set-env-vars "${ENV_VARS}" \
     --memory 2Gi \
     --cpu 1 \
-    --task-timeout 2h \
-    --max-retries 1
+    --task-timeout 30m \
+    --max-retries 0
 else
   "${GCLOUD}" run jobs create "${JOB_NAME}" \
     --image "${IMAGE}" \
     --region "${REGION}" \
     --service-account "${SERVICE_ACCOUNT}" \
-    --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPT_PREFIX=podcasts/transcripts_whisper" \
+    --set-env-vars "${ENV_VARS}" \
     --memory 2Gi \
     --cpu 1 \
-    --task-timeout 2h \
-    --max-retries 1
+    --task-timeout 30m \
+    --max-retries 0
 fi
 
 echo "Granting Cloud Scheduler permission to run the job..."

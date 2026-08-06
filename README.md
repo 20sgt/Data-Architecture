@@ -121,10 +121,28 @@ in.
 ├── sample/                     # small sample of scraped JSON for local testing
 │   ├── matters/ingest_date=.../
 │   └── meetings/ingest_date=.../
+├── sfchronicle_podcast_ingest/ # podcast bronze→silver (Whisper, enrich, query)
+│   ├── README.md               # setup, weekly Cloud Run, spend guards
+│   ├── docs/                   # footprint, architecture, deep-dive plan
+│   ├── ingest.py / transcribe.py / enrich.py / silver.py
+│   └── query_silver.py
 ├── requirements.txt
 ├── TODO.md
 └── README.md
 ```
+
+### Podcast pipeline (second source)
+
+SF Chronicle / Voice of San Francisco podcasts are ingested into GCS, transcribed with
+**local/Cloud Run Whisper** (no Google Speech-to-Text), enriched for bills/people/topics, and
+published as queryable silver tables (SQLite + GCS JSONL).
+
+- **Package docs:** [sfchronicle_podcast_ingest/README.md](sfchronicle_podcast_ingest/README.md)
+- **Architecture:** [sfchronicle_podcast_ingest/docs/ARCHITECTURE.md](sfchronicle_podcast_ingest/docs/ARCHITECTURE.md)
+- **Data footprint (M1):** [sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md](sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md)
+- **Deep-dive plan (M2):** [sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md](sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md)
+
+Weekly Cloud Run job (Sunday 03:00 PT): ingest → budget-capped Whisper → enrich → silver.
 
 See the design docs for the full reasoning behind the architecture:
 
@@ -255,6 +273,7 @@ dashboard consumes.
 
 - **Repository:** https://github.com/20sgt/Data-Architecture
 - **Data source (SF Legistar):** https://sfgov.legistar.com
+- **Podcast pipeline:** [sfchronicle_podcast_ingest/README.md](sfchronicle_podcast_ingest/README.md)
 - **Pipeline design:** [docs/pipeline_design.md](docs/pipeline_design.md)
 - **Architecture diagrams:** [docs/architecture_diagrams.md](docs/architecture_diagrams.md)
 - **ERD:** https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships

@@ -132,3 +132,48 @@ def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
     # Legacy object must remain untouched (no upload performed on it).
     legacy = bucket.blobs["podcasts/transcripts/show/already-transcribed.json"]
     assert legacy.uploaded_string is None
+
+
+def test_transcribe_missing_stops_at_episode_budget(monkeypatch):
+    """Purpose: verify WHISPER_MAX_EPISODES stops before extra Cloud Run spend."""
+    bucket = FakeBucket(
+        [
+            FakeBlob("podcasts/audio/show/a.mp3"),
+            FakeBlob("podcasts/audio/show/b.mp3"),
+            FakeBlob("podcasts/audio/show/c.mp3"),
+        ]
+    )
+    monkeypatch.setattr(
+        transcribe,
+        "load_config",
+        lambda: {
+            "bucket_name": "test-bucket",
+            "project_id": "test-project",
+            "service_account_key": None,
+        },
+    )
+    monkeypatch.setattr(
+        transcribe,
+        "get_storage_client",
+        lambda config: FakeStorageClient(bucket),
+    )
+    monkeypatch.setattr(transcribe, "load_whisper_model", lambda: object())
+    monkeypatch.setattr(
+        transcribe,
+        "transcribe_audio_blob",
+        lambda **kwargs: {
+            "audio_gcs_uri": "gs://test/x.mp3",
+            "language_code": "en",
+            "engine": "faster-whisper",
+            "transcript": "ok",
+            "results": [],
+            "transcribed_at": "2026-06-27T00:00:00+00:00",
+        },
+    )
+    monkeypatch.setenv("WHISPER_MAX_EPISODES", "2")
+    monkeypatch.setenv("WHISPER_MAX_RUNTIME_MINUTES", "0")
+    monkeypatch.setenv("WHISPER_BUDGET_USD", "0")
+
+    stats = transcribe.transcribe_missing()
+    assert stats["transcribed"] == 2
+    assert stats["stopped_reason"] == "max_episodes"

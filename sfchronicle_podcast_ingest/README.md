@@ -156,13 +156,25 @@ People lexicon: `data/representatives.json`.
 
 ## Cloud weekly job
 
-Ingest + enrich + silver JSONL (no Whisper in cloud):
+Scheduled **only** Sunday 03:00 America/Los_Angeles (Cloud Scheduler).  
+Pipeline: ingest → budget-capped Whisper (`tiny`/CPU) → enrich → silver JSONL.
+
+**No Google Speech-to-Text.** Hard stops keep spend near zero:
+
+| Guard | Default |
+|-------|---------|
+| `WHISPER_MAX_EPISODES` | 5 new episodes / run |
+| `WHISPER_MAX_RUNTIME_MINUTES` | 20 minutes |
+| `WHISPER_BUDGET_USD` | ~\$0.25 estimated Cloud Run CPU |
+| Job `--task-timeout` | 30 minutes (platform kill switch) |
 
 ```bash
-./deploy_cloud.sh
+./deploy_cloud.sh                 # build + update schedule (does not run now)
+./deploy_cloud.sh --execute-now   # optional manual test only
 ```
 
-Schedule: Sunday 03:00 America/Los_Angeles. After new audio lands, run Whisper locally, then enrich/silver.
+Resources: **1 vCPU / 2 GiB**. Idempotent — already-transcribed audio is skipped.
+
 
 ## Documentation
 
