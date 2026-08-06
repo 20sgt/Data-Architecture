@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"   # the project interpreter (matches .venv); bump in one place if it changes
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest scrape/ -v       # all scrape/ tests are offline (parsers + collect plumbing) — no network/browser
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform -chdir=terraform fmt -check
+      - run: terraform -chdir=terraform init -backend=false   # providers only — no state, no GCP creds
+      - run: terraform -chdir=terraform validate

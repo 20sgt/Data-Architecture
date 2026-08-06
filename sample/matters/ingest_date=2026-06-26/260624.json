@@ -1,0 +1,154 @@
+{
+  "file_number": "260624",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8060324&GUID=AA5E106C-D8C0-492E-A138-339A15D35D05&Options=&Search=",
+  "name": "Loan Agreement - Metropolitan Transportation Commission - Public Transit Operating Purposes - $200,000,000",
+  "title": "Resolution authorizing the Director of Transportation to enter into a loan agreement with the Metropolitan Transportation Commission as lender, for San Francisco Municipal Transportation Agency public transit operating purposes, up to a maximum principal amount of $200,000,000, for a 12 year term from July 1, 2026, through June 3, 2038, pursuant to Assembly Bill No. 117.",
+  "type": "Resolution",
+  "status": "Passed",
+  "introduced": "6/2/2026",
+  "on_agenda": null,
+  "final_action": "6/18/2026",
+  "enactment_date": "6/18/2026",
+  "enactment_number": "372-26",
+  "in_control": "Clerk of the Board",
+  "sponsors": [
+    "Mayor",
+    "Danny Sauter",
+    "Rafael Mandelman"
+  ],
+  "related_files": [
+    "260653"
+  ],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558189&GUID=3B83FC46-5F40-4FCD-9811-48345530B496"
+    },
+    {
+      "name": "DRAFT Loan Agmt",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558151&GUID=6E864B03-E77C-4A04-939A-B4EA95F7CCFC"
+    },
+    {
+      "name": "CON Memo 052926",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558154&GUID=40CB4FB1-3B31-45AF-AAF7-B8898F42A9CF"
+    },
+    {
+      "name": "MTAB Reso No. 260602-045 060226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558155&GUID=8925047B-FE53-4F35-B9EA-7E19B87B615F"
+    },
+    {
+      "name": "MTA CEQA Det 052026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558156&GUID=DF28BE90-F709-4F39-B0B9-3B4613D53F08"
+    },
+    {
+      "name": "Assembly Bill No. 117 021926",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558157&GUID=AFEEB961-58E8-4510-A354-6C38E221AB94"
+    },
+    {
+      "name": "MYR Memo 060226",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15558158&GUID=72040562-2117-46CC-88DE-85276168F6BC"
+    },
+    {
+      "name": "MTA Briefing Ltr 061026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15576619&GUID=E7D34B8C-3D43-44EE-A767-523FBA3602B4"
+    },
+    {
+      "name": "BLA Rpt 061126",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15578435&GUID=BBB0716B-9C1A-4644-ACF0-858AC7D7D70E"
+    },
+    {
+      "name": "Board Pkt 061626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15582690&GUID=03DFCCEE-6D63-4D0E-84E0-806AC38DB293"
+    },
+    {
+      "name": "Leg Final",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15646326&GUID=01D27C12-8A05-47BB-8C61-637AAE686B3E"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/18/2026",
+      "body": "Mayor",
+      "action": "APPROVED",
+      "result": "",
+      "history_id": "37077240",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37077240&GUID=42AFF359-22DA-4B0D-8B1E-2E4A5C9AAE8A",
+      "votes": []
+    },
+    {
+      "date": "6/16/2026",
+      "body": "Board of Supervisors",
+      "action": "ADOPTED",
+      "result": "Pass",
+      "history_id": "36989372",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36989372&GUID=5B180FD4-8303-4B31-86C7-ACAA027FFCED",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312512",
+          "person_name": "Chyanne Chen",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312511",
+          "person_name": "Jackie Fielder",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "60155",
+          "person_name": "Myrna Melgar",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "330759",
+          "person_name": "Alan Wong",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/2/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36939611",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36939611&GUID=9A7EEE79-AF1E-453F-853D-D444A01B81AE",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

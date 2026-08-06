@@ -1,0 +1,110 @@
+{
+  "file_number": "260512",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8068647&GUID=72D530E2-7045-467E-9CB9-008C6E0BAF22&Options=&Search=",
+  "name": "Appointments, Behavioral Health Council - Athena Bing-Ying Ng and Raymond Deng",
+  "title": "Motion appointing Athena Bing-Ying Ng, term ending January 1, 2028, and Raymond Deng, term ending January 1, 2027, to the Behavioral Health Council.",
+  "type": "Motion",
+  "status": "Passed",
+  "introduced": "5/12/2026",
+  "on_agenda": null,
+  "final_action": "6/23/2026",
+  "enactment_date": "6/23/2026",
+  "enactment_number": "M26-053",
+  "in_control": "Clerk of the Board",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Application Forms",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15575644&GUID=59ADD9F6-D2C3-47BC-9B56-E48807A45B38"
+    },
+    {
+      "name": "Information Sheet",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15575653&GUID=C48EC359-DF38-4E40-AAA5-40AF401F2B3D"
+    },
+    {
+      "name": "2023_Commissions_and_Boards_Report_",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15575660&GUID=81CA370B-4657-4968-89C0-8E98E22673DE"
+    },
+    {
+      "name": "BHC Current Members and Applicants 061526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15575664&GUID=539A7563-DF1E-4979-838B-2E2DEBCCD706"
+    },
+    {
+      "name": "Comm Pkt 061526",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15575669&GUID=F0FB7E6A-5152-44D7-ADB9-0730291CCCB1"
+    },
+    {
+      "name": "Leg Ver1-2",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15590457&GUID=13D496B7-0F70-4EF3-A66E-F1C47DABBD85"
+    },
+    {
+      "name": "Board Pkt 062326",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15613243&GUID=21DFE118-E299-40E0-94B4-74B07C33FA02"
+    },
+    {
+      "name": "Leg Final",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15653113&GUID=1DB36B1E-2A6E-403C-BB9B-387E9FD6FFC7"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/23/2026",
+      "body": "Board of Supervisors",
+      "action": "",
+      "result": "",
+      "history_id": null,
+      "history_url": null,
+      "votes": []
+    },
+    {
+      "date": "6/15/2026",
+      "body": "Rules Committee",
+      "action": "PREPARED IN COMMITTEE AS A MOTION",
+      "result": "",
+      "history_id": "36883053",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36883053&GUID=D607ABCA-9E17-46EE-B107-49F6B5FEA98A",
+      "votes": []
+    },
+    {
+      "date": "6/15/2026",
+      "body": "Rules Committee",
+      "action": "RECOMMENDED",
+      "result": "Pass",
+      "history_id": "37018895",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37018895&GUID=0BE9A9FE-C9B0-4FEB-838A-7B5677B5A025",
+      "votes": [
+        {
+          "person_id": "160445",
+          "person_name": "Shamann Walton",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Excused"
+        },
+        {
+          "person_id": "196476",
+          "person_name": "Rafael Mandelman",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "330759",
+          "person_name": "Alan Wong",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "5/11/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36751946",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36751946&GUID=3A3CC6A9-502B-4299-9D38-D5DF2A9FE89F",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

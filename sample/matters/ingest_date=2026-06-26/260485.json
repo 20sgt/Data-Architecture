@@ -1,0 +1,71 @@
+{
+  "file_number": "260485",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8002835&GUID=96A42891-841E-4F13-A5B8-6D98874D9E75&Options=&Search=",
+  "name": "Settlement of Unlitigated Claim - Craig Banks - $100,000",
+  "title": "Resolution approving the settlement of the unlitigated claim filed by Craig Banks against the City and County of San Francisco for $100,000; the claim was filed on March 26, 2014; the claim involves an employment dispute.",
+  "type": "Resolution",
+  "status": "Consent Agenda",
+  "introduced": "5/12/2026",
+  "on_agenda": "5/12/2026",
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Government Audit and Oversight Committee",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15435279&GUID=1C73A3DB-2931-4099-A6FE-409596A072BA"
+    },
+    {
+      "name": "Comm Pkt 061826",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583344&GUID=CC58A85B-AA64-45B8-9389-83EF85D971A8"
+    },
+    {
+      "name": "Board Pkt 063026",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15657183&GUID=906BFE18-A2BF-4D04-8B63-7A29B7183F9E"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/18/2026",
+      "body": "Government Audit and Oversight Committee",
+      "action": "RECOMMENDED..",
+      "result": "Pass",
+      "history_id": "36959821",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36959821&GUID=6CD47C36-E7A0-4CD7-9979-7F8457C05A07",
+      "votes": [
+        {
+          "person_id": "312930",
+          "person_name": "Stephen Sherrill",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312510",
+          "person_name": "Bilal Mahmood",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "5/12/2026",
+      "body": "President",
+      "action": "RECEIVED AND ASSIGNED",
+      "result": "",
+      "history_id": "36667734",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36667734&GUID=FF7DF0E1-EC40-4C98-96E4-98DCB48C1CE6",
+      "votes": []
+    },
+    {
+      "date": "4/30/2026",
+      "body": "Clerk of the Board",
+      "action": "RECEIVED FROM DEPARTMENT",
+      "result": "",
+      "history_id": "36667733",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36667733&GUID=E0A958B3-D3D5-46EE-87A3-D45035390564",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

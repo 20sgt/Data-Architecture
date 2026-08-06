@@ -1,12 +1,45 @@
+# raw landing zone (bronze) — never commit scraped data
+raw/
+
+# warehouse local artifacts
+warehouse/db/
+warehouse/exports/
+
+# dev env / scratch
 .env
 .venv/
+.probe/
+logs/
+*.log
+
+# python
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# os
+.DS_Store
+
+# slop
+.claude
+
+# dbt: throwaway build output, downloaded packages, logs, and the REAL
+# connection file (holds a secret token — commit only profiles.yml.example)
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles.yml
+dbt/.env
+dbt/.user.yml
+
+# Terraform local artifacts (state lives in gs://cotc-tfstate; plans are throwaway)
+terraform/.terraform/
+terraform/tfplan*
+*.tfstate
+*.tfstate.*
+
+# podcast pipeline local artifacts
 *.json
 !sfchronicle_podcast_ingest/data/representatives.json
-.DS_Store
-logs/
-.pytest_cache/
 sfchronicle_podcast_ingest/data/*.sqlite
 sfchronicle_podcast_ingest/data/*.sqlite-*
-
