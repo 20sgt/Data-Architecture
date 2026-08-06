@@ -1,10 +1,78 @@
 # SF Chronicle Podcast Pipeline
 
-Runnable package for the Corn Off the Cobb **audio branch**: ingest → Whisper → enrich → silver.
+Civic podcast ingestion and enrichment for San Francisco / Bay Area politics (Corn Off the Cobb **audio** workstream).
 
-Parent overview: [../README.md](../README.md)
+Turns SF Chronicle and Voice of San Francisco podcasts into a **queryable silver layer**: bills, representatives, topics, stances, and citeable quotes — without Google Speech-to-Text or paid LLM APIs.
 
-## Pipeline steps
+## Why this exists
+
+Podcasts discuss propositions, supervisors, housing, and homelessness in plain language, but audio is not searchable. This package:
+
+1. **Ingests** episode audio + metadata into Google Cloud Storage (bronze)
+2. **Transcribes** with local Whisper (free inference)
+3. **Extracts** civic entities with rule-based enrichment
+4. **Publishes** flat tables for SQL / dashboards / future RAG or MCP tools
+
+## Architecture (medallion)
+
+```text
+RSS feeds
+   │
+   ▼
+┌──────────────────────────────────────────────────────────┐
+│  BRONZE  GCS: podcasts/audio + podcasts/metadata         │
+└──────────────────────────────────────────────────────────┘
+   │  local Whisper (faster-whisper)
+   ▼
+┌──────────────────────────────────────────────────────────┐
+│  SILVER transcripts  podcasts/transcripts_whisper/       │
+└──────────────────────────────────────────────────────────┘
+   │  enrich.py (regex + lexicons)
+   ▼
+┌──────────────────────────────────────────────────────────┐
+│  SILVER entities  podcasts/enrichment/                   │
+│  + SQLite / JSONL  podcasts/silver/  (query tables)      │
+└──────────────────────────────────────────────────────────┘
+```
+
+| Layer | Contents | Location |
+|-------|----------|----------|
+| Bronze | MP3 audio, episode metadata JSON | `gs://…/podcasts/audio`, `…/metadata` |
+| Silver (text) | Whisper transcripts | `…/podcasts/transcripts_whisper` |
+| Silver (entities) | Bills, people, topics, stances, claims | `…/enrichment` + `…/silver/*.jsonl` |
+| Local query | Same tables as SQLite | `data/podcast_silver.sqlite` |
+
+## Package layout
+
+```text
+sfchronicle_podcast_ingest/
+├── README.md                 ← you are here
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DATA_FOOTPRINT.md     # M1 bronze footprint
+│   ├── DEEP_DIVE_PLAN.md     # M2 plan + KPIs
+│   └── PROJECT_STRUCTURE.md
+├── ingest.py / transcribe.py / enrich.py / silver.py
+├── query_silver.py
+├── data/representatives.json
+├── tests/
+└── run_*.sh / deploy_cloud.sh / Dockerfile
+```
+
+## Quick start
+
+```bash
+cd sfchronicle_podcast_ingest
+python3 -m venv .venv
+./.venv/bin/python3 -m pip install -r requirements.txt
+cp .env.example .env
+# Edit .env: set GCP_SERVICE_ACCOUNT_KEY to your service-account JSON path
+
+chmod +x run_*.sh deploy_cloud.sh
+./run_local_pipeline.sh
+```
+
+### Pipeline commands
 
 | Step | Command | Notes |
 |------|---------|--------|
@@ -14,16 +82,6 @@ Parent overview: [../README.md](../README.md)
 | Silver | `./run_silver.sh` | SQLite + GCS JSONL |
 | Full local | `./run_local_pipeline.sh` | All of the above |
 | Query | `./.venv/bin/python3 query_silver.py --bill prop_c` | Local SQLite |
-
-## Setup
-
-```bash
-python3 -m venv .venv
-./.venv/bin/python3 -m pip install -r requirements.txt
-cp .env.example .env
-# Edit .env: set GCP_SERVICE_ACCOUNT_KEY to your service-account JSON path
-chmod +x run_*.sh deploy_cloud.sh
-```
 
 Required `.env` values:
 
@@ -36,6 +94,32 @@ TRANSCRIPT_PREFIX=podcasts/transcripts_whisper
 
 On Cloud Run, omit `GCP_SERVICE_ACCOUNT_KEY` and use the job’s attached service account.
 
+## Cost model
+
+| Component | Charge? |
+|-----------|---------|
+| Local Whisper transcription | **No** |
+| Rule-based enrichment | **No** |
+| SQLite / GCS JSONL silver | **No** paid analytics APIs |
+| Google Speech-to-Text | **Not used** |
+| GCS storage + weekly Cloud Run ingest | Standard GCP storage / small job cost only |
+
+## Shows ingested
+
+| Slug | Source |
+|------|--------|
+| `fifth-and-mission` | Megaphone |
+| `fixing-our-city` | Megaphone |
+| `extra-spicy` | Megaphone |
+| `datebook` | Megaphone |
+| `the-doodler` | Megaphone |
+| `giants-splash-as-plus` | Megaphone |
+| `warriors-off-court` | Megaphone |
+| `chronicled-kamala-harris` | Megaphone |
+| `voice-of-san-francisco` | Podbean |
+
+Civic querying is strongest on **Fifth & Mission**, **Fixing Our City**, and **Voice of San Francisco**.
+
 ## GCS layout
 
 ```text
@@ -45,22 +129,13 @@ podcasts/
   transcripts/{show_slug}/{episode_id}.json          # legacy (never overwritten)
   transcripts_whisper/{show_slug}/{episode_id}.json  # Whisper-only
   enrichment/{show_slug}/{episode_id}.json
-  silver/
-    episodes.jsonl
-    episode_bills.jsonl
-    episode_topics.jsonl
-    episode_people.jsonl
-    episode_stances.jsonl
-    episode_claims.jsonl
-    _manifest.json
+  silver/*.jsonl
   _manifest.json
 ```
 
 Local DB: `data/podcast_silver.sqlite` (gitignored).
 
 ## Querying
-
-Normalized keys ignore ASR spelling variants:
 
 ```bash
 ./.venv/bin/python3 query_silver.py
@@ -79,8 +154,6 @@ WHERE b.bill_normalized = 'prop_c' AND e.usable = 1;
 
 People lexicon: `data/representatives.json`.
 
-Enrichment fields: `bills`, `people`, `topics`, `stances`, `claims`, `summary_fields`, `quality`.
-
 ## Cloud weekly job
 
 Ingest + enrich + silver JSONL (no Whisper in cloud):
@@ -89,9 +162,14 @@ Ingest + enrich + silver JSONL (no Whisper in cloud):
 ./deploy_cloud.sh
 ```
 
-Schedule: Sunday 03:00 America/Los_Angeles (`podcast-weekly-trigger`).
+Schedule: Sunday 03:00 America/Los_Angeles. After new audio lands, run Whisper locally, then enrich/silver.
 
-After new episodes appear, run Whisper locally, then enrich/silver.
+## Documentation
+
+- [Architecture & cost model](docs/ARCHITECTURE.md)
+- [Data footprint (M1)](docs/DATA_FOOTPRINT.md)
+- [Deep-dive plan & KPIs (M2)](docs/DEEP_DIVE_PLAN.md)
+- [Project structure](docs/PROJECT_STRUCTURE.md)
 
 ## Tests
 

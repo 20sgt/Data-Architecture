@@ -17,7 +17,7 @@ Documented for the Corn Off the Cobb Data Architecture milestone: raw layer in t
 | Megaphone RSS | `fifth-and-mission`, `extra-spicy`, `giants-splash-as-plus`, `datebook`, `the-doodler`, `warriors-off-court`, `fixing-our-city`, `chronicled-kamala-harris` | Public RSS → MP3 URL | MP3 + JSON metadata |
 | Podbean RSS | `voice-of-san-francisco` | Public RSS → MP3 URL | MP3 + JSON metadata |
 
-Feed URLs are defined in `sfchronicle_podcast_ingest/ingest.py` (`SHOW_FEEDS`).
+Feed URLs are defined in `ingest.py` (`SHOW_FEEDS`).
 
 ## Bronze objects
 

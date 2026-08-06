@@ -56,14 +56,14 @@ Re-runs are safe and only process gaps.
 | Scott Wiener | `scott_wiener` |
 | homelessness keywords | topic `homelessness` |
 
-People lexicon: `sfchronicle_podcast_ingest/data/representatives.json`.
+People lexicon: `data/representatives.json`.
 
 ## Weekly operations
 
 **Cloud (ingest + enrich + silver JSONL):** Cloud Run Job + Scheduler (Sunday 3:00 AM PT).  
 **Local (Whisper):** `./run_transcribe.sh` when new audio appears, then enrich/silver.
 
-See package [README](../sfchronicle_podcast_ingest/README.md) for deploy commands.
+See package [README](../README.md) for deploy commands.
 
 ## What we deliberately avoid
 
