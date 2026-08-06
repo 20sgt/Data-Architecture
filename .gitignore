@@ -7,6 +7,9 @@ warehouse/exports/
 
 # dev env / scratch
 .env
+.env.*
+!.env.example
+!**/.env.example
 .venv/
 .probe/
 logs/
@@ -38,10 +41,19 @@ terraform/tfplan*
 *.tfstate
 *.tfstate.*
 
-# podcast pipeline local artifacts / secrets
-*.json
-!sfchronicle_podcast_ingest/data/representatives.json
-sfchronicle_podcast_ingest/data/*.sqlite
-sfchronicle_podcast_ingest/data/*.sqlite-*
+# ---------------------------------------------------------------------------
+# Podcast pipeline (sfchronicle_podcast_ingest)
+# Do NOT use a blanket *.json rule — main tracks sample/**/*.json fixtures.
+# ---------------------------------------------------------------------------
 sfchronicle_podcast_ingest/.venv/
 sfchronicle_podcast_ingest/logs/
+sfchronicle_podcast_ingest/data/*.sqlite
+sfchronicle_podcast_ingest/data/*.sqlite-*
+sfchronicle_podcast_ingest/**/__pycache__/
+sfchronicle_podcast_ingest/.pytest_cache/
+
+# GCP / local secret JSON keys (never commit)
+**/corn-off-the-cobb*.json
+**/*service-account*.json
+**/*credentials*.json
+**/*-bdc8978dd3c6.json
