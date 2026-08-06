@@ -122,10 +122,9 @@ in.
 │   ├── matters/ingest_date=.../
 │   └── meetings/ingest_date=.../
 ├── sfchronicle_podcast_ingest/ # podcast bronze→silver (Whisper, enrich, query)
-│   ├── README.md               # setup, weekly Cloud Run, spend guards
-│   ├── docs/                   # footprint, architecture, deep-dive plan
-│   ├── ingest.py / transcribe.py / enrich.py / silver.py
-│   └── query_silver.py
+│   ├── README.md
+│   ├── docs/                   # M1 footprint, M2 deep-dive plan
+│   └── ingest / transcribe / enrich / silver / query_silver
 ├── requirements.txt
 ├── TODO.md
 └── README.md
@@ -133,16 +132,12 @@ in.
 
 ### Podcast pipeline (second source)
 
-SF Chronicle / Voice of San Francisco podcasts are ingested into GCS, transcribed with
-**local/Cloud Run Whisper** (no Google Speech-to-Text), enriched for bills/people/topics, and
-published as queryable silver tables (SQLite + GCS JSONL).
+RSS → GCS audio → Whisper transcripts → rule enrichment → SQLite + GCS JSONL.
+No Google Speech-to-Text. Weekly Cloud Run Sunday 03:00 PT (budget-capped Whisper).
 
-- **Package docs:** [sfchronicle_podcast_ingest/README.md](sfchronicle_podcast_ingest/README.md)
-- **Architecture:** [sfchronicle_podcast_ingest/docs/ARCHITECTURE.md](sfchronicle_podcast_ingest/docs/ARCHITECTURE.md)
-- **Data footprint (M1):** [sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md](sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md)
-- **Deep-dive plan (M2):** [sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md](sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md)
-
-Weekly Cloud Run job (Sunday 03:00 PT): ingest → budget-capped Whisper → enrich → silver.
+- [Package README](sfchronicle_podcast_ingest/README.md)
+- [Data footprint (M1)](sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md)
+- [Deep-dive plan (M2)](sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md)
 
 See the design docs for the full reasoning behind the architecture:
 

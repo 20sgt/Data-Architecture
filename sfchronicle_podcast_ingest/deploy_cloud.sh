@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
+# Deploy Cloud Run Job + Sunday 03:00 PT scheduler.
+# Usage: ./deploy_cloud.sh [--execute-now]
 set -euo pipefail
-
-# Deploy weekly podcast pipeline as a Cloud Run Job + Cloud Scheduler.
-# Uses faster-whisper (tiny/CPU) on Cloud Run.
-# Sized for cheapest weekly catch-up (few new episodes), not full historical backfill.
-# Usage:
-#   ./deploy_cloud.sh
-#   ./deploy_cloud.sh --execute-now
 
 PROJECT_ID="${GCP_PROJECT_ID:-corn-off-the-cobb}"
 REGION="${GCP_REGION:-us-west1}"
@@ -31,19 +26,16 @@ if command -v gcloud >/dev/null 2>&1; then
 elif [[ -x "/Users/sgt/MSDS/Spring/Spring Module 2/MLOps/google-cloud-sdk/bin/gcloud" ]]; then
   GCLOUD="/Users/sgt/MSDS/Spring/Spring Module 2/MLOps/google-cloud-sdk/bin/gcloud"
 else
-  echo "gcloud CLI not found. Install Google Cloud SDK, then rerun." >&2
+  echo "gcloud CLI not found." >&2
   exit 1
 fi
 
 echo "Using gcloud: ${GCLOUD}"
-echo "Project: ${PROJECT_ID}"
-echo "Region: ${REGION}"
-echo "Job: ${JOB_NAME}"
-echo "Service account: ${SERVICE_ACCOUNT}"
+echo "Project: ${PROJECT_ID}  Region: ${REGION}  Job: ${JOB_NAME}"
 
 "${GCLOUD}" config set project "${PROJECT_ID}"
 
-echo "Enabling required APIs..."
+echo "Enabling APIs..."
 "${GCLOUD}" services enable \
   run.googleapis.com \
   cloudscheduler.googleapis.com \
@@ -52,7 +44,7 @@ echo "Enabling required APIs..."
   storage.googleapis.com \
   iam.googleapis.com
 
-echo "Ensuring service account IAM roles..."
+echo "IAM roles for ${SERVICE_ACCOUNT}..."
 "${GCLOUD}" projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/storage.objectAdmin" \
@@ -63,13 +55,12 @@ echo "Ensuring service account IAM roles..."
   --role="roles/logging.logWriter" \
   --condition=None >/dev/null
 
-echo "Building and pushing image ${IMAGE}..."
+echo "Building ${IMAGE}..."
 "${GCLOUD}" builds submit --tag "${IMAGE}" .
 
-echo "Creating/updating Cloud Run Job (1 CPU / 2Gi, budget-capped Whisper)..."
-# Hard Cloud Run wall clock = 30m so a runaway cannot burn hours.
-# App-level guards also stop Whisper early (episodes / minutes / \$ budget).
 ENV_VARS="GCP_PROJECT_ID=${PROJECT_ID},GCP_BUCKET_NAME=${BUCKET_NAME},TRANSCRIPT_PREFIX=podcasts/transcripts_whisper,WHISPER_MODEL=tiny,WHISPER_DEVICE=cpu,WHISPER_COMPUTE_TYPE=int8,WHISPER_MAX_EPISODES=5,WHISPER_MAX_RUNTIME_MINUTES=20,WHISPER_BUDGET_USD=0.25,WHISPER_HOURLY_RATE_USD=0.10"
+
+echo "Cloud Run Job (1 CPU / 2Gi, 30m timeout)..."
 if "${GCLOUD}" run jobs describe "${JOB_NAME}" --region "${REGION}" >/dev/null 2>&1; then
   "${GCLOUD}" run jobs update "${JOB_NAME}" \
     --image "${IMAGE}" \
@@ -92,7 +83,7 @@ else
     --max-retries 0
 fi
 
-echo "Granting Cloud Scheduler permission to run the job..."
+echo "Scheduler permissions..."
 PROJECT_NUMBER="$("${GCLOUD}" projects describe "${PROJECT_ID}" --format='value(projectNumber)')"
 SCHEDULER_SA="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
 
@@ -105,14 +96,13 @@ SCHEDULER_SA="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-cloudscheduler.iam
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/run.invoker" >/dev/null
 
-# Cloud Build needs to act as the runtime SA when deploying some resources.
 "${GCLOUD}" iam service-accounts add-iam-policy-binding "${SERVICE_ACCOUNT}" \
   --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
   --role="roles/iam.serviceAccountUser" >/dev/null || true
 
 JOB_URI="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT_ID}/jobs/${JOB_NAME}:run"
 
-echo "Creating/updating Cloud Scheduler job (${SCHEDULE} ${TIME_ZONE})..."
+echo "Scheduler ${SCHEDULER_NAME} (${SCHEDULE} ${TIME_ZONE})..."
 if "${GCLOUD}" scheduler jobs describe "${SCHEDULER_NAME}" --location "${REGION}" >/dev/null 2>&1; then
   "${GCLOUD}" scheduler jobs update http "${SCHEDULER_NAME}" \
     --location "${REGION}" \
@@ -132,11 +122,10 @@ else
 fi
 
 echo
-echo "Deploy complete."
-echo "Weekly schedule: ${SCHEDULE} (${TIME_ZONE})"
-echo "Manual run: ${GCLOUD} run jobs execute ${JOB_NAME} --region ${REGION}"
+echo "Deploy complete. Schedule: ${SCHEDULE} (${TIME_ZONE})"
+echo "Manual: ${GCLOUD} run jobs execute ${JOB_NAME} --region ${REGION}"
 
 if [[ "${EXECUTE_NOW}" -eq 1 ]]; then
-  echo "Executing job now..."
+  echo "Executing now..."
   "${GCLOUD}" run jobs execute "${JOB_NAME}" --region "${REGION}"
 fi

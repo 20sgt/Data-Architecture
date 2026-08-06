@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""
-Download SF Chronicle podcast episodes from Megaphone RSS feeds into GCS.
-
-Usage:
-  python ingest.py                 # backfill + exit
-  python ingest.py --watch         # poll for new episodes (default: every 6 hours)
-  python ingest.py --watch --interval 3600
-"""
+"""Ingest podcast RSS feeds into GCS (audio + metadata + manifest)."""
 
 from __future__ import annotations
 

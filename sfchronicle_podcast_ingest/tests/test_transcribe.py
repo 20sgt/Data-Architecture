@@ -44,7 +44,6 @@ class FakeStorageClient:
 
 
 def test_transcript_blob_path_matches_audio_path():
-    """Purpose: verify each MP3 maps to the NEW Whisper-only transcript path."""
     assert (
         transcribe.transcript_blob_path("podcasts/audio/datebook/episode-123.mp3")
         == "podcasts/transcripts_whisper/datebook/episode-123.json"
@@ -52,13 +51,11 @@ def test_transcript_blob_path_matches_audio_path():
 
 
 def test_transcript_prefix_is_not_legacy():
-    """Purpose: ensure new runs never target the undisturbed legacy prefix."""
     assert transcribe.TRANSCRIPT_PREFIX != transcribe.LEGACY_TRANSCRIPT_PREFIX
     assert transcribe.TRANSCRIPT_PREFIX == "podcasts/transcripts_whisper"
 
 
 def test_combine_segments_joins_whisper_segments():
-    """Purpose: verify Whisper segment texts are combined into one transcript."""
     segments = [
         SimpleNamespace(text=" First sentence. "),
         SimpleNamespace(text="Second sentence."),
@@ -67,12 +64,10 @@ def test_combine_segments_joins_whisper_segments():
 
 
 def test_normalize_language_code_strips_region():
-    """Purpose: verify en-US env values still work with Whisper's en language code."""
     assert transcribe.normalize_language_code("en-US") == "en"
 
 
 def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
-    """Purpose: verify reruns only transcribe MP3s missing transcript files."""
     bucket = FakeBucket(
         [
             FakeBlob("podcasts/audio/show/needs-transcript.mp3"),
@@ -135,7 +130,6 @@ def test_transcribe_missing_skips_existing_transcripts(monkeypatch):
 
 
 def test_transcribe_missing_stops_at_episode_budget(monkeypatch):
-    """Purpose: verify WHISPER_MAX_EPISODES stops before extra Cloud Run spend."""
     bucket = FakeBucket(
         [
             FakeBlob("podcasts/audio/show/a.mp3"),
