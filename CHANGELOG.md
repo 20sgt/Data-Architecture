@@ -2,6 +2,54 @@
 
 Newest entries at the top.
 
+## [2026-08-08 12:45] — Developer sandboxes: production is now opt-in (increment 9)
+
+**What:** `dbt run` from a laptop no longer targets production. Sandboxing is the
+default; the real `silver`/`gold` require `--vars '{prod_schemas: true}'`, which
+only the weekly Job passes. Plus per-developer schemas and connection docs.
+**Why:** Asked whether teammates could build on gold from their IDE. They can read
+it from anywhere — but anyone running this dbt project locally would have written
+straight into production.
+**Files:** `dbt/macros/generate_schema_name.sql`, `databricks.yml`,
+`dbt/profiles.yml.example`, `README.md` (commits `6e834b7`, `a79a854`)
+
+**The bug was in a fix.** `generate_schema_name` was overridden so tables land in
+plain `silver`/`gold` rather than dbt's `<target>_gold`. Correct goal — but
+prefixing is also what keeps each developer out of production, and removing it
+removed that. Nothing separated a local `dbt run` from the live warehouse except
+teammates happening to lack CREATE permission: protection by accident.
+
+**Design notes:**
+- *Production is opt-in, not opt-out.* A forgotten flag builds a harmless sandbox.
+  The dangerous behaviour now has to be requested in writing.
+- *Keyed on a var, not `target.name`.* The Job's dbt task uses a profiles.yml that
+  **Databricks generates**, so its target name is neither ours to set nor to verify.
+  Guessing it wrong would have silently redirected production — the exact class of
+  failure that cost us three fixes in increment 7. A var set in `databricks.yml` can
+  be read back off the deployed job.
+- *Membership test, not truthiness.* `--vars '{prod_schemas: "false"}'` passes the
+  STRING "false", which Jinja treats as true. A bare `if var(...)` would have sent
+  that dev run into production. Verified both string and boolean forms.
+- *One schema per developer in dev*, not per-layer copies, so nobody needs
+  CREATE SCHEMA on the catalog — owning your own schema suffices. Model names are
+  already unique across layers.
+- *Sources are never redirected*: a sandbox reads the real `bronze`, so you develop
+  against production data without being able to damage it.
+
+**Sandbox schemas created and owned:** `dev_lynn`, `dev_20sgtaylor`,
+`dev_jacksoncdawson`. `dbt/profiles.yml` now uses `schema: dev_lynn`.
+
+**Verification:** compiled both modes (dev → `dev_lynn.*`, prod → `silver`/`gold`),
+then three consecutive Job runs — gold counts unchanged (38,724 / 587,165 /
+179,247), no stray schemas.
+
+**OPEN QUESTION (raised by this work):** teammates hold `SELECT` on **gold only**,
+by earlier deliberate choice. But this dbt project's models read from `bronze`, so
+a teammate contributing models here would fail on the first staging model. Reading
+gold and writing their own models elsewhere works today; contributing to *this*
+project does not. Granting `SELECT` on `bronze` would reverse the "gold only"
+decision, so it is left for a deliberate call rather than assumed.
+
 ## [2026-08-08 12:15] — Gold is consumable: docs, tests, grants + failure alerting (increment 8)
 
 **What:** Made the gold layer usable by someone other than an admin, and made the
