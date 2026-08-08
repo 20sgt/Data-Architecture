@@ -74,6 +74,8 @@ resources:
               - "dbt deps"
               - "dbt build"
             warehouse_id: ${var.warehouse_id}
+            catalog: corn_off_the_cob   # pin the target catalog (models set their own silver/gold schema)
+            schema: gold                # fallback default schema; our models override per-folder
           # The dbt CLI process itself runs on this small serverless environment;
           # the SQL it issues runs on warehouse_id above.
           environment_key: dbt_cli
