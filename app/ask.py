@@ -15,6 +15,7 @@ import os
 import re
 import sqlite3
 import sys
+from datetime import date
 
 import anthropic
 from databricks import sql as dbsql
@@ -188,12 +189,20 @@ and excerpts from SF news podcasts.
 Summarize what the data shows in a few sentences — cite the actual numbers. Then, \
 if a podcast excerpt is genuinely on-topic, point the reader to it by show, \
 episode title, and timestamp. If nothing is relevant, say so instead of \
-stretching. Never invent numbers that aren't in the rows."""
+stretching. Never invent numbers that aren't in the rows.
+
+Dates are a number too. A query written with CURRENT_DATE() returns rows with no \
+year in them, so the period covered is NOT visible in the results — read it off \
+`today` and the SQL, or describe the period in the question's own words ("this \
+year") rather than naming a year the rows don't state."""
 
 
 def answer(question, sql, cols, rows, episodes):
     payload = {
         "question": question,
+        # The rows a CURRENT_DATE() query returns carry no year, and the model
+        # will confidently supply the wrong one if we don't say what today is.
+        "today": date.today().isoformat(),
         "sql": sql,
         "columns": cols,
         "rows": rows[:60],
