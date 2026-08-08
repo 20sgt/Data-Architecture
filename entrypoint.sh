@@ -33,7 +33,7 @@ python -m scrape.legistar_meetings --current-month --from "$FROM" --to "$DATE" \
 # Tradeoff: a whole-year enumeration for <=7 days of rows, ~once a month on the
 # normal weekly path; swap to webapi /events window enumeration if that minute ever
 # matters.
-NOW_MONTH="$(date -u +%Y-%m)"
+NOW_MONTH="${NOW_MONTH:-$(date -u +%Y-%m)}"   # overridable so the branch is testable offline
 if [ "${FROM%-*}" != "$NOW_MONTH" ] || [ "${DATE%-*}" != "$NOW_MONTH" ]; then
     echo ">> [1b] window outside current month ($NOW_MONTH) - year pass for ${FROM%%-*}"
     python -m scrape.legistar_meetings --year "${FROM%%-*}" --from "$FROM" --to "$DATE" \
