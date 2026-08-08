@@ -77,6 +77,16 @@ resources:
             custom_tags:
               ResourceClass: SingleNode
 
+            # UNITY CATALOG. Without this the cluster boots on the legacy Hive
+            # metastore, where spark_catalog only accepts two-part names — and the
+            # notebook's three-part `corn_off_the_cob.bronze.matters` fails with
+            # REQUIRES_SINGLE_PART_NAMESPACE. Clusters created in the UI default to
+            # a UC-enabled mode, so this gap only shows up for bundle-declared
+            # clusters: the interactive cluster that ran the July bootstrap had
+            # USER_ISOLATION, while every job cluster came up with mode None.
+            data_security_mode: SINGLE_USER
+            single_user_name: ${workspace.current_user.userName}
+
             # A CLASSIC (non-serverless) cluster is what can read the external GCS
             # bucket. No google_service_account set -> it uses the workspace
             # default SA, which already has bucket access (same as your
