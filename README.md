@@ -163,7 +163,96 @@ they're identical on every run and safe for incremental MERGE.
 
 `meeting_sk` on the fact tables is **nullable** — it's populated only when an action/vote resolves
 to a known meeting via `history_id` (procedural actions like clerk referrals never occur in a
-meeting).
+meeting). This is not a rare edge case: **58%** of `fact_matter_action` rows (103,669 of 179,247)
+and **3.7%** of `fact_vote` rows (21,828 of 587,165) have no meeting. Join with `LEFT JOIN` —
+filtering on `meeting_sk` silently drops most of the action history.
+
+---
+
+## Using the warehouse
+
+The gold tables live in a Databricks SQL warehouse, reachable over JDBC/ODBC from **any** client —
+you do not have to work inside the Databricks web UI. Notebooks, VS Code, DataGrip, DBeaver, a
+local Python script and dbt all connect the same way.
+
+### Connection details
+
+| | |
+|---|---|
+| Host | `8259559357598229.9.gcp.databricks.com` |
+| HTTP path | `/sql/1.0/warehouses/aa8398aa70d15ec5` |
+| Catalog | `corn_off_the_cob` |
+| Auth | your own credentials — see below |
+
+For authentication, prefer **OAuth** over a personal access token:
+
+```bash
+databricks auth login --host https://8259559357598229.9.gcp.databricks.com --profile DEFAULT
+```
+
+This opens a browser, stores refreshing credentials in your OS keyring, and never expires on you.
+Personal access tokens still work and are what the dbt profile uses, but Databricks now labels them
+legacy — and a silently expired one cost this project a week in July.
+
+### Reading from Python
+
+```bash
+pip install databricks-sql-connector
+```
+
+```python
+from databricks import sql
+
+with sql.connect(
+    server_hostname="8259559357598229.9.gcp.databricks.com",
+    http_path="/sql/1.0/warehouses/aa8398aa70d15ec5",
+    access_token="dapi...",           # or use OAuth via auth_type="databricks-oauth"
+) as conn, conn.cursor() as cur:
+    cur.execute("SELECT * FROM corn_off_the_cob.gold.member_vote_record LIMIT 10")
+    for row in cur.fetchall():
+        print(row)
+```
+
+`member_vote_record` is the place to start — one row per vote with the member, legislation, outcome,
+body and meeting already joined on, so you need no joins of your own.
+
+### What you can and cannot touch
+
+| schema | access |
+|---|---|
+| `gold` | **read only** — `SELECT` on all 10 relations |
+| `silver`, `bronze` | no access (internal; shapes change without notice) |
+| `dev_<yourname>` | **yours** — you own it, build whatever you like |
+
+Every gold table and column carries a description in Unity Catalog, so **Catalog Explorer** is a
+real reference: open `corn_off_the_cob` → `gold` and read the column comments rather than guessing
+what `lifecycle` or `final_disposition` mean.
+
+### Building your own models on top
+
+Read from `gold`, write into your own schema. Ask an admin for one:
+
+```sql
+CREATE SCHEMA corn_off_the_cob.dev_yourname;
+ALTER SCHEMA corn_off_the_cob.dev_yourname OWNER TO `you@example.com`;
+```
+
+If you are working in **this** dbt project, set `schema: dev_yourname` in your `profiles.yml`
+(see `dbt/profiles.yml.example`). Every model then builds into your schema:
+
+```
+dbt run          ->  dev_yourname.dim_matter     (your sandbox)
+```
+
+Production is opt-in and deliberately awkward to trigger by accident:
+
+```
+dbt run --vars '{prod_schemas: true}'   ->  gold.dim_matter   (the live tables)
+```
+
+Prefer letting the scheduled Databricks Job build production. Sources are never redirected, so your
+sandbox reads the **real** `bronze` data — you develop against production data without being able to
+damage it.
 
 ---
 
