@@ -2,6 +2,52 @@
 
 Newest entries at the top.
 
+## [2026-08-08 11:48] — Weekly transform Job runs end to end in the cloud (increment 7)
+
+**What:** First successful cloud run of `weekly_transform` — `bronze_ingest` +
+`dbt_build`, 8m24s. Required four fixes: CLI auth moved to OAuth; the dbt task
+now pins its catalog; the ingest cluster dropped to a single node; and the
+ingest cluster now enables Unity Catalog. Also **paused** the dev schedule,
+which had been live since July.
+**Why:** Goal: stop running the transform by hand. The Job existed and had been
+firing weekly since 2026-07-15 — and failing every time, unnoticed.
+**Files:** `databricks.yml` (commits `dec39e0`, `3a91516`, `47eb3d1`, `f329527`)
+**Notes:** Four defects, none of them code, all of them gaps between the config
+we wrote and the resource that got created — `bundle validate` passed through
+every one. Corrects two earlier claims: `bundle deploy` HAD succeeded (around
+Jul 13), and the CHANGELOG's "never deployed" was wrong.
+
+- *Auth:* the July diagnosis (token scope) was wrong; the token was simply dead.
+  `databricks current-user me` settles this in seconds and should be the first
+  move on any Databricks auth error. Switched to OAuth (`databricks auth login`)
+  — no expiry, no scope choice, token in the OS keyring. PATs are now labelled
+  legacy in Databricks' own docs.
+- *Quota:* each GCP node takes 30 GB pd-ssd + 150 GB pd-balanced = 180 GB, and
+  pd-balanced counts against SSD_TOTAL_GB. us-west1 allows 500, so 1 driver +
+  2 workers (540 GB) was never satisfiable — 5/5 failures. GCP's "try again
+  later" wording concealed a hard ceiling. Single node = 180 GB, and capacity
+  was never the constraint: the 39,723-file bootstrap ran on one node in July.
+- *Unity Catalog:* UI-created clusters default to a UC-enabled security mode;
+  bundle-declared ones do not. Same notebook, different metastore underneath.
+- *Silence is the real bug:* four scheduled failures produced no signal because
+  the Job has no `email_notifications`. Add before any prod target goes UNPAUSED.
+
+**Data impact: none.** Post-run counts identical to the 2026-07-31 baseline
+(dim_matter 38,724 / fact_vote 587,165 / fact_matter_action 179,247, UNMAPPED 0).
+That is the correct result, and it exposed the next problem — see below.
+
+**FOLLOW-UP (not fixed, upstream of this work): the scraper has produced no data
+since 2026-07-22.** The transform half is healthy; the collection half is not.
+- `2026-07-29` — Cloud Run execution never started: "Resource readiness deadline
+  exceeded". Infra failure, no partition created.
+- `2026-08-05` — execution reported **success** in ~74s (vs ~3 min on 2026-07-22)
+  and wrote **0 JSON files**, leaving an empty `ingest_date=2026-08-05/` folder.
+  Exit code 0 with no output is the dangerous case: nothing downstream can tell
+  it apart from "no new legislation this week".
+Needs the Aug 5 container logs to diagnose. `origin/fix/month-boundary-window`
+is a tempting lead but has no commits ahead of `origin/main`, so it is probably
+already merged — do not assume it explains this.
+
 ## [2026-07-30 20:51] — Historical bootstrap loaded + disposition map expanded (increment 6)
 
 **What:** Ran the one-time full bootstrap. Auto Loader landed the whole bucket into
