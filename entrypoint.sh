@@ -18,14 +18,24 @@ echo ">> [1/2] meetings  $FROM .. $DATE"
 python -m scrape.legistar_meetings --current-month --from "$FROM" --to "$DATE" \
     --raw-dir "$RAW_ROOT/meetings" --date "$DATE"
 
-# Month-boundary guard: the browserless "This Month" GET above only lists the current
-# month's rows, so a window reaching into the previous month also needs the Playwright
-# year enumeration for FROM's year (chromium ships in this image). Dec->Jan works too:
-# FROM's year is the prior year, and the current-month pass covers the January side.
-# Tradeoff: a whole-year enumeration for <=7 days of rows, ~once a month; swap to
-# webapi /events window enumeration if that minute ever matters.
-if [ "${FROM%-*}" != "${DATE%-*}" ]; then
-    echo ">> [1b] window spans months - year pass for ${FROM%%-*}"
+# Month-boundary guard: the browserless "This Month" GET above lists only the month
+# the scrape RUNS IN, so any window not fully inside that month also needs the
+# Playwright year enumeration for FROM's year (chromium ships in this image).
+#
+# Compare both window ends against the CURRENT month, not against each other. The
+# "spans months" test they used to do silently lost meetings on any backfill of a
+# past month: --current-month is anchored to today, so re-running the 2026-07-22
+# window in August scraped August's (empty) calendar, found nothing, and skipped the
+# year pass because both ends agreed it was July. 41 matters landed, 3 meetings did
+# not. A year enumeration is year-wide, so one pass covers a window spanning two
+# past months too.
+#
+# Tradeoff: a whole-year enumeration for <=7 days of rows, ~once a month on the
+# normal weekly path; swap to webapi /events window enumeration if that minute ever
+# matters.
+NOW_MONTH="$(date -u +%Y-%m)"
+if [ "${FROM%-*}" != "$NOW_MONTH" ] || [ "${DATE%-*}" != "$NOW_MONTH" ]; then
+    echo ">> [1b] window outside current month ($NOW_MONTH) - year pass for ${FROM%%-*}"
     python -m scrape.legistar_meetings --year "${FROM%%-*}" --from "$FROM" --to "$DATE" \
         --raw-dir "$RAW_ROOT/meetings" --date "$DATE"
 fi
