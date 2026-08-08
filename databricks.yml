@@ -124,7 +124,12 @@ resources:
             project_directory: dbt
             commands:
               - "dbt deps"
-              - "dbt build"
+              # --vars '{prod_schemas: true}' is what makes this run write to the
+              # REAL `silver` / `gold`. Without it, generate_schema_name.sql
+              # sandboxes every model behind the target schema (dev_lynn_gold and
+              # so on) — see that macro for why the safe behaviour is the default.
+              # This is the only place in the project that opts into production.
+              - "dbt build --vars '{prod_schemas: true}'"
             warehouse_id: ${var.warehouse_id}
             catalog: corn_off_the_cob   # pin the target catalog (models set their own silver/gold schema)
             schema: gold                # fallback default schema; our models override per-folder
