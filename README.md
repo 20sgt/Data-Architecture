@@ -1,26 +1,21 @@
-# Data-Architecture
-
-A big obstacle for people to get involved with their local politics is the accessibility of information from local government meetings. To understand how policies are moving and what issues are being addressed or passed on, people need a way to access the information on the topics they are passionate about.
-
-## Resources
-
-Documentation/Slides links are not accessible publicly. Must be logged in with associated account.
-
-- [GitHub Repository](https://github.com/20sgt/Data-Architecture)
-
-
-## Architecture
-
-- [ERD](https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships)
-
 # San Francisco Legislation Lakehouse
 
-A data pipeline that scrapes legislative data from the City and County of San Francisco,
-transforms it into an analytics-ready dimensional model, and serves it to a dashboard where
-users can explore how their representatives vote.
+A big obstacle to getting involved in local politics is that the information is hard to reach.
+To understand how policies are moving and what is being addressed or passed on, people need a
+way to get at the topics they care about.
+
+This is a data pipeline that scrapes legislative data from the City and County of San Francisco,
+transforms it into an analytics-ready dimensional model, and serves it — including a
+natural-language question interface over the gold layer.
 
 Built as a data-architecture project using a **bronze → silver → gold** (medallion) lakehouse
 pattern on Databricks.
+
+- [GitHub repository](https://github.com/20sgt/Data-Architecture)
+- [ERD](https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships)
+
+> Course documentation and slides are not public — you need to be logged in with the
+> associated account.
 
 ---
 
@@ -90,43 +85,22 @@ in.
 
 ## Repository structure
 
-```
-.
-├── scrape/                     # Python scrapers (Playwright + requests/bs4)
-│   ├── legistar_scrape.py      #   legislation slice
-│   ├── legistar_meetings.py    #   meeting slice
-│   ├── fetch.py                #   rate-limited HTTP + retry
-│   ├── history_detail.py       #   roll-call vote parser
-│   └── tests/                  #   offline golden tests (run in CI)
-├── databricks/                 # the one notebook the pipeline still uses
-│   └── bronze_autoloader_databricks.py    # GCS JSON → bronze Delta (Auto Loader)
-├── dbt/                        # silver + gold transforms (owns everything after bronze)
-│   ├── models/staging/         #   8 stg_* — flatten nested bronze
-│   ├── models/intermediate/    #   8 int_* — latest-wins dedup
-│   ├── models/gold/            #   star schema + schema.yml (docs & tests)
-│   ├── tests/                  #   singular data tests
-│   └── macros/                 #   surrogate keys, dev/prod schema routing
-├── databricks.yml              # Asset Bundle: the weekly Job, as code
-├── scripts/
-│   └── backfill.sh             # one-shot 2000→2026 deep-history scrape (resumable)
-├── terraform/                  # GCP IaC: buckets + weekly scrape (Cloud Run Job + Scheduler)
-├── Dockerfile                  # scraper image for the weekly Cloud Run Job
-├── entrypoint.sh               # container entrypoint (weekly meetings → matters window)
-├── docs/
-│   ├── pipeline_design.md      # design rationale (ELT, incremental load, modeling decisions)
-│   └── architecture_diagrams.md# data-flow + ER diagrams (Mermaid)
-├── erd/
-│   └── schema.dbml             # star-schema definition
-├── frontend/
-│   ├── Design System.html      # dashboard design system / mockup
-│   └── build_data.py           # demo-dashboard data builder
-├── sample/                     # small sample of scraped JSON for local testing
-│   ├── matters/ingest_date=.../
-│   └── meetings/ingest_date=.../
-├── requirements.txt
-├── TODO.md
-└── README.md
-```
+Ordered by where data flows, not alphabetically.
+
+| Path | What lives there |
+|------|------------------|
+| `scrape/` | The scrapers. `legistar_scrape.py` (legislation), `legistar_meetings.py` (meetings), `fetch.py` (rate-limited HTTP), `history_detail.py` (roll-call parser), `tests/` (offline golden tests, run in CI) |
+| `Dockerfile`, `entrypoint.sh` | The scraper as a container. `entrypoint.sh` is the weekly order of operations: meetings, then matters |
+| `terraform/` | GCP infrastructure — the bronze bucket, plus the weekly Cloud Run Job and its Scheduler trigger |
+| `scripts/backfill.sh` | One-shot 2000→2026 deep-history scrape (resumable) |
+| `databricks/` | The one notebook still in the pipeline: GCS JSON → bronze Delta via Auto Loader |
+| `dbt/` | Everything after bronze. `models/staging/` flattens, `models/intermediate/` dedups latest-wins, `models/gold/` builds the star; `tests/` and `macros/` alongside |
+| `databricks.yml` | Asset Bundle — the weekly transform Job, as code |
+| `app/` | Natural-language questions over gold. `ask.py` (question → SQL → answer), `streamlit_app.py` (demo UI), `build_index.py` (podcast transcript FTS index) |
+| `sfchronicle_podcast_ingest/` | Separate slice: podcast audio → Whisper transcripts → enrichment. Feeds `app/build_index.py` |
+| `erd/schema.dbml` | Star-schema definition |
+| `sample/` | Four bronze JSON files documenting the shape silver consumes |
+| `docs/` | Design rationale and Mermaid diagrams |
 
 See the design docs for the full reasoning behind the architecture:
 
@@ -342,8 +316,9 @@ dev target. Failures email the job owner.
   production-hardening step.
 - **`dim_subject` has no source.** No subject/tag data is emitted by the source pages; the table is
   stubbed for future keyword/LLM tagging.
-- **Dashboard.** A design-system mockup exists (`frontend/`); the dashboard itself is not yet built
-  on top of `member_vote_record`.
+- **Serving layer is Q&A, not a dashboard.** `app/` answers natural-language questions against
+  `member_vote_record` and shows its SQL. A charted per-supervisor dashboard was mocked up early
+  and dropped; nothing renders fixed visualizations today.
 
 ---
 
