@@ -2,6 +2,52 @@
 
 Newest entries at the top.
 
+## [2026-08-08 12:15] — Gold is consumable: docs, tests, grants + failure alerting (increment 8)
+
+**What:** Made the gold layer usable by someone other than an admin, and made the
+weekly Job's failures visible.
+**Why:** A teammate with a workspace login could not read gold, had no column
+descriptions if they could, and nothing re-verified the data after July.
+**Files:** `dbt/models/gold/schema.yml` (new), `dbt/tests/*.sql` (3 new),
+`dbt/dbt_project.yml`, `databricks.yml`
+
+- **Alerting** (`0f54372`) — `email_notifications.on_failure`. The job failed 4
+  Wednesdays running and nobody knew. `on_success` deliberately omitted: routine
+  success mail trains you to ignore the alert that matters.
+- **Docs** — 10 relations, 73 columns described; `persist_docs` writes them into
+  Unity Catalog as COMMENTs. Verified 0 uncommented columns.
+- **Tests** — 0 → **49, all passing in 20s.** `dbt build` had been identical to
+  `dbt run`. Every assertion was probed against the live tables *before* being
+  written, so it encodes reality rather than a guess.
+- **Grants** — `select` on gold to `account users`, reapplied every run (a rebuilt
+  table is a new object and loses its grants otherwise), plus one-time
+  `USE CATALOG` / `USE SCHEMA`. Scope is gold only.
+
+**Two documented data-quality facts, previously unwritten:** `fact_vote.meeting_sk`
+is 3.7% NULL (21,828/587,165) and `fact_matter_action.meeting_sk` is **58% NULL**
+(103,669/179,247). Both are legitimate LEFT-join gaps via `history_id`, but the
+58% would badly mislead anyone building meeting-centric analysis, so it is now
+called out in the column description rather than discovered the hard way.
+
+**Gotchas worth keeping:**
+- Unity Catalog resolves principals at the ACCOUNT level. Granting to the
+  workspace-local group `users` fails with `PRINCIPAL_DOES_NOT_EXIST`; the
+  account-level `account users` is the equivalent.
+- A `dbt test` against a STOPPED serverless warehouse appeared to hang for 12
+  minutes. Nothing was broken — the same tests took 20s once the warehouse was
+  warm. Verify the warehouse state before debugging a Databricks "hang".
+- dbt 1.11 deprecates top-level generic-test args; they now nest under
+  `arguments:`. 16 occurrences fixed at authoring time.
+
+**SECURITY FOLLOW-UP (found, not changed):** `account users` already holds
+`ALL_PRIVILEGES`, `MANAGE` and `EXTERNAL_USE_SCHEMA` **directly on the `gold`
+schema** (and on `gold_ref`), with `inherited_from = NONE`. That is DROP/MODIFY
+plus the ability to re-grant — far beyond read. It pre-dates this work: only
+`USE CATALOG`/`USE SCHEMA` were granted today, and `gold_ref` carries the identical
+triple despite never being touched, so both almost certainly date from schema
+creation in July. The gap was never that teammates lacked read access; it was that
+everyone had write access. Needs a decision on revoking — not done unilaterally.
+
 ## [2026-08-08 11:48] — Weekly transform Job runs end to end in the cloud (increment 7)
 
 **What:** First successful cloud run of `weekly_transform` — `bronze_ingest` +
