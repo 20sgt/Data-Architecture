@@ -42,11 +42,10 @@ terraform/tfplan*
 warehouse/
 
 # podcast pipeline local artifacts
-# NOTE: `*.json` is repo-wide, not scoped to sfchronicle_podcast_ingest/. Files
-# already tracked (e.g. sample/**/*.json) are unaffected, but any NEW .json
-# anywhere in the repo is now silently ignored — `git add` will appear to do
-# nothing. Narrow this to the podcast directory if that bites.
-*.json
+# Scoped to this directory on purpose. A repo-wide `*.json` used to live here and
+# silently swallowed every new JSON anywhere in the tree — `git add` appeared to
+# succeed and staged nothing.
+sfchronicle_podcast_ingest/**/*.json
 !sfchronicle_podcast_ingest/data/representatives.json
 sfchronicle_podcast_ingest/data/*.sqlite
 sfchronicle_podcast_ingest/data/*.sqlite-*
