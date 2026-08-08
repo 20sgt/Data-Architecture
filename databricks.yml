@@ -39,12 +39,18 @@ resources:
       name: sf-legislation-weekly-transform
 
       # Wed 08:00 America/Los_Angeles, after the Wed 06:00 scrape.
-      # (In the `dev` target above, mode: development forces this PAUSED so it
-      #  won't fire on schedule while we test — we trigger it by hand instead.)
+      #
+      # PAUSED on purpose. An explicit pause_status here OVERRIDES the auto-pause
+      # that `mode: development` would otherwise apply — verified by deploying
+      # with UNPAUSED and reading the job back, which showed a live weekly cron.
+      # So the schedule is only ever as paused as this line says it is.
+      # While developing we trigger runs by hand:
+      #   databricks bundle run weekly_transform -t dev
+      # Flipping this to UNPAUSED belongs to a future `prod` target, not to dev.
       schedule:
         quartz_cron_expression: "0 0 8 ? * WED"
         timezone_id: America/Los_Angeles
-        pause_status: UNPAUSED
+        pause_status: PAUSED
 
       job_clusters:
         - job_cluster_key: ingest_cluster
