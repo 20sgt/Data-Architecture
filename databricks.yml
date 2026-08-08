@@ -57,7 +57,26 @@ resources:
           new_cluster:
             spark_version: ${var.ingest_spark_version}
             node_type_id: ${var.ingest_node_type}
-            num_workers: 2
+
+            # SINGLE NODE (driver only, no workers) — this is a hard constraint,
+            # not a preference. Each Databricks node on GCP provisions 30 GB
+            # pd-ssd (boot) + 150 GB pd-balanced (local storage) = 180 GB, and
+            # pd-balanced counts against the SSD_TOTAL_GB quota despite the name.
+            # The us-west1 quota is 500 GB, so at most 2 nodes fit. The previous
+            # 1 driver + 2 workers needed 540 GB and could never launch: the
+            # weekly schedule failed 5/5 times from 2026-07-15 with
+            # GCP_RESOURCE_QUOTA_EXCEEDED. One node = 180 GB, comfortably under.
+            #
+            # Capacity is not a concern: the full 39,723-file bootstrap was
+            # ingested on a single-node interactive cluster in July. A weekly
+            # increment is a few hundred files.
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+            custom_tags:
+              ResourceClass: SingleNode
+
             # A CLASSIC (non-serverless) cluster is what can read the external GCS
             # bucket. No google_service_account set -> it uses the workspace
             # default SA, which already has bucket access (same as your
