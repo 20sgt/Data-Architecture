@@ -135,7 +135,7 @@ they're identical on every run and safe for incremental MERGE.
 
 **Serving view**
 - `member_vote_record` — denormalized, one row per vote, joining the member, the legislation's
-  details, and its current outcome. This is what the dashboard queries.
+  details, and its current outcome. This is what `app/` queries, and where you should start too.
 
 `meeting_sk` on the fact tables is **nullable** — it's populated only when an action/vote resolves
 to a known meeting via `history_id` (procedural actions like clerk referrals never occur in a
@@ -297,20 +297,49 @@ databricks bundle run weekly_transform -t dev
 It runs `bronze_ingest` → `dbt_build`, on a Wednesday 08:00 PT schedule that is **paused** in the
 dev target. Failures email the job owner.
 
+### 5. Ask questions (the serving layer)
+
+```bash
+cp .env.example .env      # fill in the warehouse + Anthropic credentials
+set -a; source .env; set +a
+streamlit run app/streamlit_app.py
+```
+
+Nothing loads `.env` automatically — `app/ask.py` reads `os.environ`, so the `source` line is
+required rather than decorative.
+
+One-off from the shell, which prints the SQL it wrote and then the answer:
+
+```bash
+python app/ask.py "Which supervisor votes 'No' most often?"
+```
+
+The podcast transcript index is optional. Without it you get answers with no "related listening";
+to build it (needs `gcloud` auth on the podcast bucket, ~200 MB local):
+
+```bash
+python app/build_index.py
+```
+
+Both modules self-check offline with no warehouse and no API key:
+
+```bash
+python app/ask.py --demo && python app/build_index.py --demo
+```
+
 ---
 
 ## Known limitations / roadmap
 
-- **8 unmapped statuses.** A full year of data surfaced 8 matters whose `status` isn't yet in the
-  disposition map (they currently land as `final_disposition = 'UNMAPPED'`). This is a designed
-  tripwire — they need to be added to the `TERMINAL`/`IN_PROGRESS` maps in the gold notebook.
-  (Expect more from the 2000→2026 backfill.)
-- **Databricks orchestration not yet automated.** The scrape side is scheduled (Cloud Scheduler →
-  Cloud Run Job, weekly); the notebooks still run manually — a scheduled weekly Databricks
-  Workflow (silver → gold → view) is the next step.
-- **Data-quality checks pending.** Integrity assertions (unmapped statuses, orphan keys, name
-  collisions) exist inline but should be lifted into a Great Expectations suite that fails the run
-  loudly.
+- **No alerting on the scrape.** The Databricks Job emails on failure; the Cloud Run Job does not.
+  A run that fails to start logs at `ERROR` and tells nobody — which is exactly how the
+  2026-07-29 miss (41 matters, 5 meetings) sat unnoticed for ten days. See `TODO.md`.
+- **`action_type_code` is not a code.** Despite the name and the ERD's declared vocabulary, the
+  column holds raw uppercased Legistar labels — one of them is 82 characters. The normalization
+  layer (`dim_action_type`) is designed but unbuilt. Treat it as free text.
+- **Meeting documents are staged and then dropped.** `stg_meeting_documents` exists and nothing
+  reads it, so agendas, minutes and caption URLs never reach gold. `bridge_meeting_document` in
+  the ERD is the missing piece (~14K rows).
 - **UC external location not registered.** GCS reads currently go through the cluster's compute
   service account rather than a governed Unity Catalog external location. Registering one is a
   production-hardening step.
