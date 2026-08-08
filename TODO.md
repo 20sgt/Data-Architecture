@@ -1,5 +1,48 @@
 # TODO
 
+## ⚠️ Weekly scraper has produced no data since 2026-07-22 (scraper owner)
+
+Found 2026-08-08 while verifying the transform pipeline. **Not diagnosed — handing
+over to whoever owns the scrape slice.** The transform half is healthy: the weekly
+Databricks Job now runs green end to end and correctly ingested everything
+available. There is simply nothing new to ingest.
+
+**Evidence**
+
+| ingest_date | matters | meetings | Cloud Run execution |
+|---|---|---|---|
+| 2026-07-22 | 49 | 3 | success, ~3 min |
+| 2026-07-29 | *(no partition)* | — | never started — "Resource readiness deadline exceeded" |
+| 2026-08-05 | **0** | **0** | reported **SUCCESS** in ~74 s, wrote nothing |
+
+Two different failures:
+
+1. **2026-07-29** — the Cloud Run container never started. Infra-level; no partition
+   was created at all.
+2. **2026-08-05** — the more dangerous one. The job exited **0**, created
+   `gs://cotc_raw/{matters,meetings}/ingest_date=2026-08-05/`, and put no files in
+   it. It also finished in ~74 s against ~3 min on 2026-07-22, so it did far less
+   work rather than failing at the end. **Exit 0 with no output is
+   indistinguishable downstream from "a quiet week at City Hall"** — nothing in the
+   pipeline can tell the difference, and nothing alerted.
+
+**Where to start**
+
+- Container logs for execution `legistar-weekly-cfhbs` (2026-08-05, project
+  `corn-off-the-cobb`, region `us-west1`) — the ~74 s runtime should show whether
+  the window query returned nothing or the scrape bailed early.
+- Scheduler is fine and still firing: `legistar-weekly`, `0 6 * * 3`, ENABLED, last
+  attempt 2026-08-05T13:00:05Z. The trigger is not the problem.
+- `origin/fix/month-boundary-window` looks like an obvious lead given the Jul→Aug
+  timing, but it has **no commits ahead of `origin/main`** — probably already
+  merged. Don't assume it explains this.
+
+**Worth fixing regardless of root cause:** the scraper should fail loudly when a
+run produces zero files, rather than exiting 0. A successful run that collects
+nothing is either a real outage or a real change in the source, and both deserve an
+alarm. The Databricks side got `email_notifications.on_failure` on 2026-08-08 for
+the same reason.
+
 ## Open-matter re-scrape (incremental status refresh)
 
 The pilot relies on the weekly File-Created window plus the

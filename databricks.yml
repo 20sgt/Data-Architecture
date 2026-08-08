@@ -19,9 +19,6 @@ variables:
   warehouse_id:
     description: SQL warehouse the dbt task runs against (the id from its http_path).
     default: aa8398aa70d15ec5          # from /sql/1.0/warehouses/aa8398aa70d15ec5
-  ingest_service_account:
-    description: GCP service account email the classic cluster uses to read gs://cotc_raw.
-    default: TODO-fill-in@corn-off-the-cobb.iam.gserviceaccount.com
   ingest_node_type:
     description: GCP VM type for the ingest cluster (see Compute > Create cluster).
     default: n2-standard-4
@@ -41,24 +38,76 @@ resources:
     weekly_transform:
       name: sf-legislation-weekly-transform
 
+      # ALERTING. This job ran every Wednesday from 2026-07-15 and failed every
+      # time, and nobody found out for a month — because a scheduled failure is
+      # completely silent by default. Nothing here makes the job more reliable;
+      # it makes failure *visible*, which is the part that was missing.
+      #
+      # on_success is deliberately omitted: a weekly success mail trains you to
+      # ignore mail from this job, which defeats on_failure.
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+      # A run that fails before any task starts (a cluster that can't launch, as
+      # happened 5x with the SSD quota) still counts as a failed run, so it
+      # alerts. Skipped downstream tasks would otherwise generate a second,
+      # redundant mail — suppress those.
+      notification_settings:
+        no_alert_for_skipped_runs: true
+
       # Wed 08:00 America/Los_Angeles, after the Wed 06:00 scrape.
-      # (In the `dev` target above, mode: development forces this PAUSED so it
-      #  won't fire on schedule while we test — we trigger it by hand instead.)
+      #
+      # PAUSED on purpose. An explicit pause_status here OVERRIDES the auto-pause
+      # that `mode: development` would otherwise apply — verified by deploying
+      # with UNPAUSED and reading the job back, which showed a live weekly cron.
+      # So the schedule is only ever as paused as this line says it is.
+      # While developing we trigger runs by hand:
+      #   databricks bundle run weekly_transform -t dev
+      # Flipping this to UNPAUSED belongs to a future `prod` target, not to dev.
       schedule:
         quartz_cron_expression: "0 0 8 ? * WED"
         timezone_id: America/Los_Angeles
-        pause_status: UNPAUSED
+        pause_status: PAUSED
 
       job_clusters:
         - job_cluster_key: ingest_cluster
           new_cluster:
             spark_version: ${var.ingest_spark_version}
             node_type_id: ${var.ingest_node_type}
-            num_workers: 2
-            # A CLASSIC cluster with this service account is what can read the
-            # external GCS bucket (serverless can't).
-            gcp_attributes:
-              google_service_account: ${var.ingest_service_account}
+
+            # SINGLE NODE (driver only, no workers) — this is a hard constraint,
+            # not a preference. Each Databricks node on GCP provisions 30 GB
+            # pd-ssd (boot) + 150 GB pd-balanced (local storage) = 180 GB, and
+            # pd-balanced counts against the SSD_TOTAL_GB quota despite the name.
+            # The us-west1 quota is 500 GB, so at most 2 nodes fit. The previous
+            # 1 driver + 2 workers needed 540 GB and could never launch: the
+            # weekly schedule failed 5/5 times from 2026-07-15 with
+            # GCP_RESOURCE_QUOTA_EXCEEDED. One node = 180 GB, comfortably under.
+            #
+            # Capacity is not a concern: the full 39,723-file bootstrap was
+            # ingested on a single-node interactive cluster in July. A weekly
+            # increment is a few hundred files.
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+            custom_tags:
+              ResourceClass: SingleNode
+
+            # UNITY CATALOG. Without this the cluster boots on the legacy Hive
+            # metastore, where spark_catalog only accepts two-part names — and the
+            # notebook's three-part `corn_off_the_cob.bronze.matters` fails with
+            # REQUIRES_SINGLE_PART_NAMESPACE. Clusters created in the UI default to
+            # a UC-enabled mode, so this gap only shows up for bundle-declared
+            # clusters: the interactive cluster that ran the July bootstrap had
+            # USER_ISOLATION, while every job cluster came up with mode None.
+            data_security_mode: SINGLE_USER
+            single_user_name: ${workspace.current_user.userName}
+
+            # A CLASSIC (non-serverless) cluster is what can read the external GCS
+            # bucket. No google_service_account set -> it uses the workspace
+            # default SA, which already has bucket access (same as your
+            # interactive cluster).
 
       tasks:
         # 1) Ingest new files into bronze (classic cluster, reads gs://cotc_raw).
@@ -75,8 +124,15 @@ resources:
             project_directory: dbt
             commands:
               - "dbt deps"
-              - "dbt build"
+              # --vars '{prod_schemas: true}' is what makes this run write to the
+              # REAL `silver` / `gold`. Without it, generate_schema_name.sql
+              # sandboxes every model behind the target schema (dev_lynn_gold and
+              # so on) — see that macro for why the safe behaviour is the default.
+              # This is the only place in the project that opts into production.
+              - "dbt build --vars '{prod_schemas: true}'"
             warehouse_id: ${var.warehouse_id}
+            catalog: corn_off_the_cob   # pin the target catalog (models set their own silver/gold schema)
+            schema: gold                # fallback default schema; our models override per-folder
           # The dbt CLI process itself runs on this small serverless environment;
           # the SQL it issues runs on warehouse_id above.
           environment_key: dbt_cli

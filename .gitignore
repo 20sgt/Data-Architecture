@@ -38,7 +38,14 @@ terraform/tfplan*
 *.tfstate
 *.tfstate.*
 
+# retired DuckDB-era artifacts (superseded by the Databricks lakehouse)
+warehouse/
+
 # podcast pipeline local artifacts
+# NOTE: `*.json` is repo-wide, not scoped to sfchronicle_podcast_ingest/. Files
+# already tracked (e.g. sample/**/*.json) are unaffected, but any NEW .json
+# anywhere in the repo is now silently ignored — `git add` will appear to do
+# nothing. Narrow this to the podcast directory if that bites.
 *.json
 !sfchronicle_podcast_ingest/data/representatives.json
 sfchronicle_podcast_ingest/data/*.sqlite

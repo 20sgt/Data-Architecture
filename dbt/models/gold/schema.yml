@@ -1,0 +1,366 @@
+version: 2
+
+# Descriptions + data tests for the gold layer.
+#
+# TWO JOBS, one file:
+#
+#  1. DESCRIPTIONS. With `persist_docs` switched on in dbt_project.yml, dbt copies
+#     every description below into Unity Catalog as a table/column COMMENT. That is
+#     what someone browsing Catalog Explorer actually sees — without it they get
+#     bare column names and have to guess. Write for a teammate who has never seen
+#     this project.
+#
+#  2. TESTS. `dbt build` runs these after each model. Before this file existed
+#     `dbt build` did exactly what `dbt run` did: it checked that the SQL executed,
+#     never that the output was correct. Key uniqueness and orphan checks had been
+#     verified once by hand in July and nothing re-checked them since.
+#
+# Every not_null / unique below was verified against the live 26-year tables before
+# being written down, so a failure here means something genuinely changed — not
+# that we guessed wrong.
+
+models:
+
+  # ------------------------------------------------------------------ dimensions
+
+  - name: dim_matter
+    description: >
+      One row per piece of legislation ("matter") — bills, resolutions, ordinances,
+      hearings and motions. This is an accumulating snapshot: a matter keeps ONE row
+      for its whole life and its status and milestone dates are updated in place as
+      it progresses. There is no history of past states here.
+    columns:
+      - name: matter_sk
+        description: Surrogate key. Hash of matter_file. Join target for fact tables.
+        data_tests: [unique, not_null]
+      - name: matter_file
+        description: >
+          The city's own file number, e.g. "260598". Human-readable and stable —
+          this is what a person looks up on sfgov.legistar.com.
+        data_tests: [not_null]
+      - name: matter_id
+        description: Legistar's internal numeric ID, pulled out of the detail URL.
+      - name: matter_name
+        description: Short name of the legislation.
+      - name: matter_type
+        description: Kind of legislation — Ordinance, Resolution, Motion, Hearing, etc.
+      - name: matter_title
+        description: Full official title (long).
+      - name: in_control
+        description: Which body currently holds the matter.
+      - name: status
+        description: >
+          Raw status text exactly as scraped, with no cleanup. Kept so we can always
+          re-derive the mapped columns. Prefer final_disposition or lifecycle for
+          analysis — this field has dozens of near-duplicate spellings.
+      - name: final_disposition
+        description: >
+          `status` collapsed into a small controlled vocabulary. 'UNMAPPED' means a
+          status appeared that the mapping has never seen — deliberately loud, so
+          new values get classified instead of silently mislabeled. It is a legal
+          value here, but a separate test asserts the count is zero.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [passed, filed, killed, failed, vetoed, withdrawn, in_progress, UNMAPPED]
+      - name: lifecycle
+        description: >
+          Coarser rollup of final_disposition, for "is this still moving?" questions.
+          terminal_other = finished but not passed (filed/killed/failed/vetoed/withdrawn).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [passed, terminal_other, in_progress, UNMAPPED]
+      - name: introduced_date
+        description: Date the matter was introduced.
+      - name: first_committee_date
+        description: Earliest committee action date. NULL if it never reached committee.
+      - name: final_action_date
+        description: Date of the most recent action. NULL while still in progress.
+      - name: enactment_date
+        description: Date it became law. NULL unless enacted.
+      - name: enactment_number
+        description: Ordinance/resolution number assigned on enactment. NULL unless enacted.
+
+  - name: dim_person
+    description: >
+      One row per person — Supervisors and other named individuals. IDENTITY ONLY:
+      district, party, term dates and committee seats are NOT populated (Legistar
+      does not publish them on the pages we scrape; see TODO.md). Two populations
+      are merged here, distinguished by id_source.
+    columns:
+      - name: person_sk
+        description: Surrogate key. Stable across runs for both populations.
+        data_tests: [unique, not_null]
+      - name: person_id
+        description: >
+          Legistar's person ID. Present only for people with a recorded vote;
+          NULL for sponsor-only people, who have no ID anywhere in the source.
+      - name: full_name
+        description: Person's name as it appears in the source.
+        data_tests: [not_null]
+      - name: id_source
+        description: >
+          How this person was identified. 'vote' = had a recorded vote, so keyed on a
+          real person_id (reliable). 'sponsor_only' = only ever seen as a sponsor name,
+          so keyed on the NAME — meaning a spelling change in the source creates a
+          second person. Treat sponsor_only rows with more caution.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [vote, sponsor_only]
+
+  - name: dim_committee
+    description: One row per acting body — the full Board, its committees, and other bodies.
+    columns:
+      - name: committee_sk
+        description: Surrogate key. Hash of committee_name.
+        data_tests: [unique, not_null]
+      - name: committee_name
+        description: Body name as scraped, e.g. "Board of Supervisors".
+        data_tests: [not_null]
+
+  - name: dim_meeting
+    description: One row per committee or board meeting.
+    columns:
+      - name: meeting_sk
+        description: Surrogate key.
+        data_tests: [unique, not_null]
+      - name: meeting_id
+        description: Legistar's meeting identifier.
+      - name: committee_sk
+        description: The body that met.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_committee')
+                field: committee_sk
+      - name: body_name
+        description: Body name carried alongside committee_sk for convenience.
+      - name: meeting_date
+        description: Date of the meeting.
+      - name: meeting_time
+        description: Start time as free text, not a typed time.
+      - name: meeting_subtype
+        description: Regular, Special, Cancelled, etc.
+      - name: agenda_status
+        description: Publication status of the agenda.
+      - name: agenda_url
+        description: Link to the published agenda.
+
+  - name: dim_document
+    description: One row per document attached to a matter.
+    columns:
+      - name: document_sk
+        description: Surrogate key.
+        data_tests: [unique, not_null]
+      - name: document_id
+        description: Source identifier for the document.
+      - name: document_title
+        description: Document title as shown in the source.
+      - name: document_url
+        description: Link to the document.
+
+  # ----------------------------------------------------------------------- facts
+
+  - name: fact_vote
+    description: >
+      One row per recorded individual vote — the grain is (person, matter, occasion),
+      NOT one row per matter. This is the table behind "how did my representative
+      vote?". 587,165 rows across 26 years.
+    columns:
+      - name: vote_sk
+        description: Surrogate key for the vote.
+        data_tests: [unique, not_null]
+      - name: matter_sk
+        description: Legislation voted on.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_matter')
+                field: matter_sk
+      - name: person_sk
+        description: Member who cast the vote.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_person')
+                field: person_sk
+      - name: committee_sk
+        description: Body in which the vote was cast.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_committee')
+                field: committee_sk
+      - name: meeting_sk
+        description: >
+          Meeting the vote happened in. NULLABLE ON PURPOSE — about 3.7% of votes
+          (21,828 of 587,165) do not resolve to a known meeting, because the link
+          runs through history_id and not every action carries one. Filtering on
+          meeting_sk silently drops those votes; use a LEFT join.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_meeting')
+                field: meeting_sk
+      - name: vote_date
+        description: Date the vote was cast.
+      - name: vote_value
+        description: How the member voted — Aye, No, Absent, Excused, Recused, etc.
+      - name: history_id
+        description: Source identifier linking this vote to its action and meeting.
+
+  - name: fact_matter_action
+    description: >
+      One row per action taken on a matter (referred, amended, passed on first
+      reading, ...) — the procedural trail behind a matter's current status.
+    columns:
+      - name: matter_action_sk
+        description: >
+          Surrogate key. Built from history_id when present, otherwise from
+          matter_file + action_date + action_type. Deliberately does NOT use array
+          position, so it stays stable when a matter is re-scraped.
+        data_tests: [unique, not_null]
+      - name: matter_sk
+        description: Matter acted on.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_matter')
+                field: matter_sk
+      - name: committee_sk
+        description: Body that took the action.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_committee')
+                field: committee_sk
+      - name: meeting_sk
+        description: >
+          Meeting the action occurred in. NULLABLE, and MOSTLY NULL — 103,669 of
+          179,247 rows (58%) have no meeting. Many actions are administrative and
+          never happen in a meeting at all. Do not build meeting-centric analysis
+          on this column without accounting for the majority that is missing.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_meeting')
+                field: meeting_sk
+      - name: action_type_code
+        description: What the action was.
+      - name: action_date
+        description: Date of the action.
+      - name: action_result
+        description: Outcome of the action, where the source records one.
+      - name: history_id
+        description: Source identifier; the join key to meetings.
+
+  # --------------------------------------------------------------------- bridges
+
+  - name: bridge_matter_sponsor
+    description: >
+      Many-to-many link between matters and their sponsors. A matter has one primary
+      sponsor and any number of co-sponsors, so this table has multiple rows per
+      matter — joining it to dim_matter WILL multiply matter rows. Aggregate first.
+    columns:
+      - name: matter_sk
+        description: The sponsored matter.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_matter')
+                field: matter_sk
+      - name: person_sk
+        description: The sponsoring person.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_person')
+                field: person_sk
+      - name: sponsor_type
+        description: >
+          "primary" = introduced it (list position 0); "co" = co-sponsor.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [primary, co]
+
+  - name: bridge_matter_document
+    description: >
+      Many-to-many link between matters and attached documents. Multiple rows per
+      matter — same fan-out warning as bridge_matter_sponsor.
+    columns:
+      - name: matter_sk
+        description: The matter.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_matter')
+                field: matter_sk
+      - name: document_sk
+        description: The attached document.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_document')
+                field: document_sk
+
+  # --------------------------------------------------------------- serving layer
+
+  - name: member_vote_record
+    description: >
+      SERVING VIEW for the dashboard — start here if you just want to query votes.
+      One row per recorded vote with member, legislation, outcome, body and meeting
+      already joined on, so no joins are needed to answer "how did member X vote on
+      matters in period Y". Being a view, it always reflects the current gold tables.
+      Row count equals fact_vote exactly (587,165) — the joins do not fan out.
+    columns:
+      - name: vote_sk
+        description: Surrogate key of the underlying vote.
+        data_tests: [unique, not_null]
+      - name: vote_date
+        description: Date the vote was cast.
+      - name: vote_value
+        description: Aye, No, Absent, Excused, Recused, etc.
+      - name: person_id
+        description: Legistar person ID. NULL for sponsor-only people.
+      - name: member_name
+        description: Name of the member who voted.
+        data_tests: [not_null]
+      - name: matter_file
+        description: City file number of the legislation.
+      - name: matter_name
+        description: Short name of the legislation.
+      - name: matter_title
+        description: Full official title.
+      - name: matter_type
+        description: Ordinance, Resolution, Motion, Hearing, etc.
+      - name: matter_status
+        description: Raw scraped status text of the matter.
+      - name: lifecycle
+        description: Coarse outcome rollup — see dim_matter.lifecycle.
+      - name: final_disposition
+        description: Mapped outcome — see dim_matter.final_disposition.
+      - name: committee_name
+        description: Body the vote was cast in.
+      - name: meeting_date
+        description: Date of the meeting. NULL where the vote does not resolve to one.
+      - name: matter_sk
+        description: Key back to dim_matter.
+      - name: person_sk
+        description: Key back to dim_person.
+      - name: committee_sk
+        description: Key back to dim_committee.
+      - name: meeting_sk
+        description: Key back to dim_meeting. NULL for ~3.7% of votes.
