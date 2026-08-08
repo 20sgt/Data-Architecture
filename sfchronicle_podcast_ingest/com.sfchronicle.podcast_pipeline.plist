@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.sfchronicle.podcast_pipeline</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/sgt/MSDS/Summer/Data Architecture/Final Project/sfchronicle_podcast_ingest/run_weekly_pipeline.sh</string>
+  </array>
+
+  <!-- Sunday at 3:00 AM local time. Weekday: 0 = Sunday, 1 = Monday, ... 6 = Saturday. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>0</integer>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/sgt/MSDS/Summer/Data Architecture/Final Project/sfchronicle_podcast_ingest/logs/launchd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/sgt/MSDS/Summer/Data Architecture/Final Project/sfchronicle_podcast_ingest/logs/launchd.err.log</string>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/sgt/MSDS/Summer/Data Architecture/Final Project/sfchronicle_podcast_ingest</string>
+</dict>
+</plist>
