@@ -38,6 +38,23 @@ resources:
     weekly_transform:
       name: sf-legislation-weekly-transform
 
+      # ALERTING. This job ran every Wednesday from 2026-07-15 and failed every
+      # time, and nobody found out for a month — because a scheduled failure is
+      # completely silent by default. Nothing here makes the job more reliable;
+      # it makes failure *visible*, which is the part that was missing.
+      #
+      # on_success is deliberately omitted: a weekly success mail trains you to
+      # ignore mail from this job, which defeats on_failure.
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+      # A run that fails before any task starts (a cluster that can't launch, as
+      # happened 5x with the SSD quota) still counts as a failed run, so it
+      # alerts. Skipped downstream tasks would otherwise generate a second,
+      # redundant mail — suppress those.
+      notification_settings:
+        no_alert_for_skipped_runs: true
+
       # Wed 08:00 America/Los_Angeles, after the Wed 06:00 scrape.
       #
       # PAUSED on purpose. An explicit pause_status here OVERRIDES the auto-pause
