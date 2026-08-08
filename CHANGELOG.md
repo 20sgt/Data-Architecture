@@ -2,6 +2,32 @@
 
 Newest entries at the top.
 
+## [2026-08-08 12:58] — Cleanup: retire the superseded notebooks and stale docs
+
+**What:** Deleted the 5 PySpark notebooks that dbt replaced, corrected the README's
+run instructions and repo tree, and gitignored the retired `warehouse/` directory.
+**Why:** The README still told you to run `transform/gold_merge_databricks.py` and
+`silver_autoloader_databricks.py` — one renamed in July, the others superseded by
+dbt. Following the README as written would have rebuilt gold the old way, outside
+dbt, with no tests and no grants applied.
+**Files:** deleted `databricks/{gold_dim_matter,gold_merge,gold_star,silver_load,silver_load_meetings}_databricks.py`;
+`README.md`, `.gitignore`
+**Notes:** `databricks/bronze_autoloader_databricks.py` stays — it is the only
+notebook the Job still runs, and dbt cannot replace it (Auto Loader's file-by-file
+incremental read is not expressible in batch SQL). Deletions are recoverable from
+git history if a detail is needed later.
+
+**NOT DONE — needs you to run it.** Dropping the spent validation fixtures was
+blocked by a safety check on destructive SQL, correctly. They are the July
+diff-validation copies (`silver_ref` 8 tables, `gold_ref` 9 tables, built from the
+869-matter slice), superseded and carrying the over-broad grants noted in
+increment 8:
+
+```sql
+DROP SCHEMA IF EXISTS corn_off_the_cob.gold_ref   CASCADE;
+DROP SCHEMA IF EXISTS corn_off_the_cob.silver_ref CASCADE;
+```
+
 ## [2026-08-08 12:45] — Developer sandboxes: production is now opt-in (increment 9)
 
 **What:** `dbt run` from a laptop no longer targets production. Sandboxing is the

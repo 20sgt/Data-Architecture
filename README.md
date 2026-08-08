@@ -98,13 +98,15 @@ in.
 │   ├── fetch.py                #   rate-limited HTTP + retry
 │   ├── history_detail.py       #   roll-call vote parser
 │   └── tests/                  #   offline golden tests (run in CI)
-├── databricks/                 # Databricks notebooks (the lakehouse pipeline)
-│   ├── silver_autoloader_databricks.py    # bronze JSON → silver staging (Auto Loader)
-│   ├── silver_load_databricks.py          # silver loaders
-│   ├── silver_load_meetings_databricks.py
-│   ├── gold_merge_databricks.py           # silver → gold star (dedup + MERGE)
-│   ├── gold_star_databricks.py            # gold star builders
-│   └── gold_dim_matter_databricks.py
+├── databricks/                 # the one notebook the pipeline still uses
+│   └── bronze_autoloader_databricks.py    # GCS JSON → bronze Delta (Auto Loader)
+├── dbt/                        # silver + gold transforms (owns everything after bronze)
+│   ├── models/staging/         #   8 stg_* — flatten nested bronze
+│   ├── models/intermediate/    #   8 int_* — latest-wins dedup
+│   ├── models/gold/            #   star schema + schema.yml (docs & tests)
+│   ├── tests/                  #   singular data tests
+│   └── macros/                 #   surrogate keys, dev/prod schema routing
+├── databricks.yml              # Asset Bundle: the weekly Job, as code
 ├── scripts/
 │   └── backfill.sh             # one-shot 2000→2026 deep-history scrape (resumable)
 ├── terraform/                  # GCP IaC: buckets + weekly scrape (Cloud Run Job + Scheduler)
@@ -285,36 +287,41 @@ in `TODO.md` closes that gap.)
 
 Per-file layout and what each existing partition covers: [scrape/README.md](scrape/README.md).
 
-### 2. Silver — incremental ingestion
+### 2. Bronze — incremental ingestion
 
-In Databricks, run **`transform/silver_autoloader_databricks.py`**. Set in the config cell:
+`databricks/bronze_autoloader_databricks.py` lands raw JSON into `bronze.matters` /
+`bronze.meetings`, nesting intact. Auto Loader reads **only files it hasn't processed before**
+(tracked in a checkpoint Volume), so each run ingests just the new partition.
 
-```python
-CATALOG = "corn_off_the_cob"   # your Unity Catalog catalog
-SRC     = "gs://cotc_raw"       # the raw bucket
-CKPT    = "/Volumes/<catalog>/silver/raw/_checkpoints"   # Auto Loader checkpoint (managed Volume)
+Must run on a **classic** cluster with Unity Catalog enabled — serverless blocks external-GCS
+egress, and without UC the notebook's three-part table names fail. Both are already set in
+`databricks.yml`.
+
+### 3. Silver + gold — dbt
+
+Everything after bronze is dbt. There are no gold notebooks any more.
+
+```bash
+cd dbt
+dbt build                                # builds into YOUR sandbox schema
+dbt build --vars '{prod_schemas: true}'  # builds the real silver / gold
 ```
 
-Auto Loader reads **only files it hasn't processed before** (tracked in the checkpoint), so each run
-ingests just the new partition. First run ingests the full backfill; subsequent runs are
-incremental.
+`dbt build` runs the models *and* the 49 data tests. See
+[dbt/profiles.yml.example](dbt/profiles.yml.example) for connection setup and why the plain command
+is the safe one.
 
-### 3. Gold — star schema
+### 4. Or just run the whole thing
 
-Run **`transform/gold_merge_databricks.py`** (set the same `CATALOG`). This:
+Both steps above are wired together as a Databricks Job, defined in `databricks.yml`:
 
-1. collapses silver to each matter's/meeting's **latest scrape** (latest-wins dedup),
-2. builds the dimensions, facts, and bridges,
-3. **`MERGE`s** them into the gold tables — updating changed matters in place, inserting new ones,
-   and skipping unchanged rows (idempotent).
+```bash
+databricks bundle deploy -t dev
+databricks bundle run weekly_transform -t dev
+```
 
-### 4. Serving view
-
-Run **`transform/gold_serving_view_databricks.py`** to create the `member_vote_record` view the
-dashboard consumes.
-
-> **Run order matters:** silver → gold → view. The gold notebook is the single source of truth for
-> the gold layer; do not also run earlier overwrite-style gold notebooks.
+It runs `bronze_ingest` → `dbt_build`, on a Wednesday 08:00 PT schedule that is **paused** in the
+dev target. Failures email the job owner.
 
 ---
 

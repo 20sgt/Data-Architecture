@@ -36,3 +36,6 @@ terraform/tfplan*
 *.tfstate
 *.tfstate.*
 dbt/.user.yml
+
+# retired DuckDB-era artifacts (superseded by the Databricks lakehouse)
+warehouse/
