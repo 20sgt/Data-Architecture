@@ -39,14 +39,31 @@ called out in the column description rather than discovered the hard way.
 - dbt 1.11 deprecates top-level generic-test args; they now nest under
   `arguments:`. 16 occurrences fixed at authoring time.
 
-**SECURITY FOLLOW-UP (found, not changed):** `account users` already holds
+**SECURITY: over-broad grants on `gold` found and revoked.** `account users` held
 `ALL_PRIVILEGES`, `MANAGE` and `EXTERNAL_USE_SCHEMA` **directly on the `gold`
-schema** (and on `gold_ref`), with `inherited_from = NONE`. That is DROP/MODIFY
-plus the ability to re-grant — far beyond read. It pre-dates this work: only
-`USE CATALOG`/`USE SCHEMA` were granted today, and `gold_ref` carries the identical
-triple despite never being touched, so both almost certainly date from schema
-creation in July. The gap was never that teammates lacked read access; it was that
-everyone had write access. Needs a decision on revoking — not done unilaterally.
+schema** (`inherited_from = NONE`) — DROP/MODIFY plus the ability to re-grant.
+This pre-dated today's work: only `USE CATALOG`/`USE SCHEMA` were granted today,
+and `gold_ref` carries the identical triple despite never being touched, so both
+date from schema creation in July. **The gap was never that teammates lacked read
+access — it was that everyone had write access.**
+
+Revoked all three. Note the trap: `REVOKE ALL PRIVILEGES` also removes `USE_SCHEMA`,
+which silently breaks reads (SELECT on a table is useless without USE SCHEMA on its
+schema), so it had to be re-granted. Verified end state:
+
+| level | privilege |
+|-------|-----------|
+| catalog `corn_off_the_cob` | `USE_CATALOG` |
+| schema `gold` | `USE_SCHEMA` |
+| all 10 gold tables | `SELECT` |
+
+`gold_ref` still carries the over-broad grants — left alone deliberately; it is the
+spent July validation fixture and gets dropped in the cleanup increment.
+
+**Not yet verified:** nobody has actually queried gold as a non-admin. The real
+test is a teammate running
+`SELECT * FROM corn_off_the_cob.gold.member_vote_record LIMIT 10` from their own
+login. Everything above is confirmed from the grant tables, not from a real read.
 
 ## [2026-08-08 11:48] — Weekly transform Job runs end to end in the cloud (increment 7)
 
