@@ -50,3 +50,6 @@ warehouse/
 !sfchronicle_podcast_ingest/data/representatives.json
 sfchronicle_podcast_ingest/data/*.sqlite
 sfchronicle_podcast_ingest/data/*.sqlite-*
+
+# NL query app: downloaded transcripts, FTS index, schema cache
+app/data/
