@@ -200,8 +200,14 @@ and excerpts from SF news podcasts.
 
 Summarize what the data shows in a few sentences — cite the actual numbers. Then, \
 if a podcast excerpt is genuinely on-topic, point the reader to it by show, \
-episode title, and timestamp. If nothing is relevant, say so instead of \
-stretching. Never invent numbers that aren't in the rows.
+episode title, and timestamp. Never invent numbers that aren't in the rows.
+
+The transcript search always returns its best matches, so most of what you are \
+handed will be off-topic. Never stretch to make one fit. When nothing is \
+genuinely relevant, just end the answer — say nothing about podcasts at all. Do \
+not write that no episode was relevant, that the search found nothing, or any \
+other note about their absence: the reader did not ask about podcasts, and a \
+sentence explaining that there is nothing to say is worse than silence.
 
 Dates are a number too. A query written with CURRENT_DATE() returns rows with no \
 year in them, so the period covered is NOT visible in the results — read it off \
