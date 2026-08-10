@@ -5,8 +5,8 @@ To understand how policies are moving and what is being addressed or passed on, 
 way to get at the topics they care about.
 
 This is a data pipeline that scrapes legislative data from the City and County of San Francisco,
-transforms it into an analytics-ready dimensional model, and serves it — including a
-natural-language question interface over the gold layer.
+transforms it into an analytics-ready dimensional model, and serves it — as a charted voting
+record and as a natural-language question interface over the gold layer.
 
 Built as a data-architecture project using a **bronze → silver → gold** (medallion) lakehouse
 pattern on Databricks.
@@ -96,7 +96,7 @@ Ordered by where data flows, not alphabetically.
 | `databricks/` | The one notebook still in the pipeline: GCS JSON → bronze Delta via Auto Loader |
 | `dbt/` | Everything after bronze. `models/staging/` flattens, `models/intermediate/` dedups latest-wins, `models/gold/` builds the star; `tests/` and `macros/` alongside |
 | `databricks.yml` | Asset Bundle — the weekly transform Job, as code |
-| `app/` | Natural-language questions over gold. `ask.py` (question → SQL → answer), `streamlit_app.py` (demo UI), `build_index.py` (podcast transcript FTS index) |
+| `app/` | The serving layer. `ask.py` (question → SQL → answer), `dashboard.py` (the charted voting record), `streamlit_app.py` (both, as two tabs), `build_index.py` (podcast transcript FTS index) |
 | `sfchronicle_podcast_ingest/` | Separate slice: podcast audio → Whisper transcripts → enrichment. Feeds `app/build_index.py` |
 | `erd/schema.dbml` | Star-schema definition |
 | `sample/` | Four bronze JSON files documenting the shape silver consumes |
@@ -297,13 +297,20 @@ databricks bundle run weekly_transform -t dev
 It runs `bronze_ingest` → `dbt_build`, on a Wednesday 08:00 PT schedule that is **paused** in the
 dev target. Failures email the job owner.
 
-### 5. Ask questions (the serving layer)
+### 5. The serving layer
 
 ```bash
 cp .env.example .env      # fill in the warehouse + Anthropic credentials
 set -a; source .env; set +a
 streamlit run app/streamlit_app.py
 ```
+
+Two tabs over the same gold tables:
+
+- **Ask** — type a question in English, get an answer, the SQL that produced it, and the rows.
+- **Voting record** — the fixed charts. Grouped bars per supervisor by vote value over a period
+  you choose, and a click-through to every vote that member cast: the matter, its type, the
+  committee, and how it ended up.
 
 Nothing loads `.env` automatically — `app/ask.py` reads `os.environ`, so the `source` line is
 required rather than decorative.
@@ -324,7 +331,7 @@ python app/build_index.py
 Both modules self-check offline with no warehouse and no API key:
 
 ```bash
-python app/ask.py --demo && python app/build_index.py --demo
+python app/ask.py --demo && python app/dashboard.py --demo && python app/build_index.py --demo
 ```
 
 ---
@@ -345,9 +352,10 @@ python app/ask.py --demo && python app/build_index.py --demo
   production-hardening step.
 - **`dim_subject` has no source.** No subject/tag data is emitted by the source pages; the table is
   stubbed for future keyword/LLM tagging.
-- **Serving layer is Q&A, not a dashboard.** `app/` answers natural-language questions against
-  `member_vote_record` and shows its SQL. A charted per-supervisor dashboard was mocked up early
-  and dropped; nothing renders fixed visualizations today.
+- **No district or party on the dashboard.** `dim_person` is identity-only — `person_id` and
+  name, captured as a byproduct of roll-call votes. Neither attribute is published anywhere on
+  the pages the scraper reads; filling them needs the Legistar web API people slice (`TODO.md`).
+  The chart labels supervisors by name alone.
 
 ---
 
