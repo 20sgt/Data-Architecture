@@ -1,0 +1,61 @@
+# CONNECTION SETTINGS TEMPLATE — copy this to a real profiles.yml, then fill it in.
+#
+# This file tells dbt how to reach your Databricks workspace. The REAL version
+# holds a secret access token, so it must NEVER be committed to git. Two options:
+#   1. Save the real file at ~/.dbt/profiles.yml  (dbt's default location), or
+#   2. Keep it here as dbt/profiles.yml and run dbt with:  DBT_PROFILES_DIR=dbt
+# Either way, dbt/profiles.yml is already in .gitignore.
+#
+# The three values below come from your Databricks SQL warehouse:
+#   Databricks UI -> SQL Warehouses -> (your warehouse) -> Connection details.
+# The token is a personal access token: User Settings -> Developer -> Access tokens.
+#
+# We read the secrets from environment variables so no secret is written in this
+# file. Set them in your shell before running dbt, e.g.:
+#   export DBT_DATABRICKS_HOST="dbc-xxxxxxxx-xxxx.cloud.databricks.com"
+#   export DBT_DATABRICKS_HTTP_PATH="/sql/1.0/warehouses/abc123def456"
+#   export DBT_DATABRICKS_TOKEN="dapi........................"
+#
+# NOTE: when this project runs as a dbt task inside a Databricks Job, Databricks
+# supplies the connection itself — this file is mainly for running dbt from your
+# own laptop while developing.
+#
+# ---------------------------------------------------------------------------
+# YOUR `schema` IS YOUR SANDBOX — set it to the schema you own, and nobody else.
+#
+# In development EVERY model lands in this one schema. With schema: dev_lynn,
+# `dbt run` builds:
+#
+#     dev_lynn.stg_matters              (not silver.stg_matters)
+#     dev_lynn.dim_matter               (not gold.dim_matter)
+#
+# so your work cannot touch the live `silver` / `gold` that the dashboard reads.
+# The silver/gold split only appears in production; in your sandbox everything
+# sits together, which is fine because model names are unique across layers.
+# See dbt/macros/generate_schema_name.sql.
+#
+# Ask an admin to create your schema and make you its owner:
+#     CREATE SCHEMA corn_off_the_cob.dev_yourname;
+#     ALTER SCHEMA corn_off_the_cob.dev_yourname OWNER TO `you@example.com`;
+# Two people sharing one value will overwrite each other's tables.
+#
+# Sources are NOT prefixed: your dev run reads the real `bronze` tables and
+# writes only into your own schemas. That is intended — you develop against real
+# data without being able to damage it.
+#
+# Building the real `silver` / `gold` requires asking for it out loud:
+#     dbt build --vars '{prod_schemas: true}'
+# Prefer letting the weekly Databricks Job do that instead.
+# ---------------------------------------------------------------------------
+
+sf_legislation:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      catalog: corn_off_the_cob   # our Unity Catalog catalog (top-level container)
+      schema: dev_yourname   # YOUR sandbox prefix — change this. See the note above.
+      host: "{{ env_var('DBT_DATABRICKS_HOST') }}"
+      http_path: "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DBT_DATABRICKS_TOKEN') }}"
+      threads: 4             # how many models dbt may build at once

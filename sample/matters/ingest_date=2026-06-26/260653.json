@@ -1,0 +1,50 @@
+{
+  "file_number": "260653",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=8069899&GUID=5155B65E-90F2-436C-8C89-2E996B83F700&Options=&Search=",
+  "name": "Hearing - Committee of the Whole - Loan Agreement - Metropolitan Transportation Commission - Public Transit Operating Purposes - $200,000,000 - June 16, 2026, at 3:00 p.m.",
+  "title": "Hearing of the Board of Supervisors sitting as a Committee of the Whole on June 16, 2026, at 3:00 p.m., to hold a public hearing to consider the Resolution authorizing the Director of Transportation to enter into a loan agreement with the Metropolitan Transportation Commission as lender, for San Francisco Municipal Transportation Agency public transit operating purposes, up to a maximum principal amount of $200,000,000, for a 12 year term from July 1, 2026, through June 3, 2038, pursuant to Assembly Bill No. 117 (File No. 260624); scheduled pursuant to Motion No. M26-050 (File No. 260652), approved on June 9, 2026.",
+  "type": "Hearing",
+  "status": "Filed",
+  "introduced": "6/9/2026",
+  "on_agenda": null,
+  "final_action": "6/16/2026",
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Board of Supervisors",
+  "sponsors": [],
+  "related_files": [
+    "260624",
+    "260652"
+  ],
+  "attachments": [
+    {
+      "name": "Board Pkt 061626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15582689&GUID=8EFCDC9E-62A8-43E6-9CF4-7715FD0CEB4C"
+    },
+    {
+      "name": "MTA Presentation 061626",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583389&GUID=835EDB5B-E0B9-4847-8A2E-D25AA066E1F5"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/16/2026",
+      "body": "Board of Supervisors",
+      "action": "HEARD AND FILED",
+      "result": "",
+      "history_id": "36988942",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36988942&GUID=7063628F-712A-4C8F-AFBB-A97DF10D9C00",
+      "votes": []
+    },
+    {
+      "date": "6/9/2026",
+      "body": "Clerk of the Board",
+      "action": "SCHEDULED FOR PUBLIC HEARING",
+      "result": "",
+      "history_id": "36991893",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36991893&GUID=3AC1EF76-5A14-406A-8661-5A9D395C5EA2",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

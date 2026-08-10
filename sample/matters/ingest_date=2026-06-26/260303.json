@@ -1,0 +1,96 @@
+{
+  "file_number": "260303",
+  "detail_url": "https://sfgov.legistar.com/LegislationDetail.aspx?ID=7962498&GUID=302D4709-FCA6-420E-BB71-BCBA97A9BF55&Options=&Search=",
+  "name": "Administrative Code - Increasing Accept and Expend Threshold Amount for Grants",
+  "title": "Ordinance amending the Administrative Code to increase the minimum grant award amount requiring Board of Supervisors approval for acceptance and expenditure from $100,000 to the greater of $1,000,000 or the federal single audit threshold amount set by the United States Office of Management and Budget, starting October 1, 2026; require Board of Supervisors approval of a grant increase only if it raises the grant to the approval threshold for the first time or increases a previously-approved grant to either 110% or more of the previously-approved amount or $200,000 or more above the previously-approved amount; authorize the Controller to make rules governing the acceptance and expenditure of any grants or grant increases that do not require Board of Supervisors approval; exempt gifts of legal services and litigation-related expert services from the requirement that department obtain Board of Supervisors approval to accept gifts valued above $10,000; and make other non-substantive organizational changes to the sections of code relating to cash revolving funds and acceptance and expenditure of grant funds.",
+  "type": "Ordinance",
+  "status": "Pending Committee Action",
+  "introduced": "3/24/2026",
+  "on_agenda": null,
+  "final_action": null,
+  "enactment_date": null,
+  "enactment_number": null,
+  "in_control": "Budget and Finance Committee",
+  "sponsors": [],
+  "related_files": [],
+  "attachments": [
+    {
+      "name": "Leg Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15342636&GUID=8B2EE9C9-C74C-4386-BB3E-8CE284B94175"
+    },
+    {
+      "name": "Leg Dig Ver1",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15342635&GUID=EAA83EBA-B59F-43C8-B853-814E8064C137"
+    },
+    {
+      "name": "BLA Rpt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583789&GUID=31862327-B3C5-4C2F-93FC-65A2DBA87900"
+    },
+    {
+      "name": "Cmte Pkt 061726",
+      "url": "https://sfgov.legistar.com/View.ashx?M=F&ID=15583788&GUID=3FD9DECF-3D20-45FB-8550-EC6E70F2E570"
+    }
+  ],
+  "actions": [
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Finance Committee",
+      "action": "AMENDED, AN AMENDMENT OF THE WHOLE BEARING NEW TITLE",
+      "result": "Pass",
+      "history_id": "36954863",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36954863&GUID=E1B3CF17-E8A5-469E-B3AD-DB914D68E1CB",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "6/17/2026",
+      "body": "Budget and Finance Committee",
+      "action": "CONTINUED AS AMENDED",
+      "result": "Pass",
+      "history_id": "37038530",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=37038530&GUID=41641A9A-0C08-427F-B980-4FE77DA856BA",
+      "votes": [
+        {
+          "person_id": "43525",
+          "person_name": "Connie Chan",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "272292",
+          "person_name": "Matt Dorsey",
+          "vote_value": "Aye"
+        },
+        {
+          "person_id": "312509",
+          "person_name": "Danny Sauter",
+          "vote_value": "Aye"
+        }
+      ]
+    },
+    {
+      "date": "3/24/2026",
+      "body": "President",
+      "action": "ASSIGNED UNDER 30 DAY RULE",
+      "result": "",
+      "history_id": "36423985",
+      "history_url": "https://sfgov.legistar.com/HistoryDetail.aspx?ID=36423985&GUID=835DA1E5-7A26-4F33-894F-05E3659A2272",
+      "votes": []
+    }
+  ],
+  "full_text": null
+}

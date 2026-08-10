@@ -1,0 +1,146 @@
+# Databricks Asset Bundle — defines the weekly transform Job as code.
+#
+# A "bundle" = this file (describing resources) + the code it runs (our bronze
+# notebook and the dbt project, both already in this repo).
+#
+#   databricks bundle validate        # check this file (like `dbt compile`)
+#   databricks bundle deploy -t dev   # create/update the Job in your workspace
+#   databricks bundle run weekly_transform -t dev   # trigger a run by hand
+#
+# NOTE: deploy uses Databricks' management APIs, so it needs a token with API
+# scope (your "BI Tools" SQL token may be rejected — generate a broader one if so).
+
+bundle:
+  name: sf-legislation-lakehouse
+
+# Values that differ by environment or that need confirming in your workspace.
+# Fill the TODOs; the rest are best-guess defaults to verify.
+variables:
+  warehouse_id:
+    description: SQL warehouse the dbt task runs against (the id from its http_path).
+    default: aa8398aa70d15ec5          # from /sql/1.0/warehouses/aa8398aa70d15ec5
+  ingest_node_type:
+    description: GCP VM type for the ingest cluster (see Compute > Create cluster).
+    default: n2-standard-4
+  ingest_spark_version:
+    description: Databricks runtime for the ingest cluster (see the runtime dropdown).
+    default: 15.4.x-scala2.12
+
+targets:
+  dev:
+    mode: development     # prefixes names with your user AND auto-PAUSES the schedule
+    default: true
+    workspace:
+      host: https://8259559357598229.9.gcp.databricks.com
+
+resources:
+  jobs:
+    weekly_transform:
+      name: sf-legislation-weekly-transform
+
+      # ALERTING. This job ran every Wednesday from 2026-07-15 and failed every
+      # time, and nobody found out for a month — because a scheduled failure is
+      # completely silent by default. Nothing here makes the job more reliable;
+      # it makes failure *visible*, which is the part that was missing.
+      #
+      # on_success is deliberately omitted: a weekly success mail trains you to
+      # ignore mail from this job, which defeats on_failure.
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+      # A run that fails before any task starts (a cluster that can't launch, as
+      # happened 5x with the SSD quota) still counts as a failed run, so it
+      # alerts. Skipped downstream tasks would otherwise generate a second,
+      # redundant mail — suppress those.
+      notification_settings:
+        no_alert_for_skipped_runs: true
+
+      # Wed 08:00 America/Los_Angeles, after the Wed 06:00 scrape.
+      #
+      # PAUSED on purpose. An explicit pause_status here OVERRIDES the auto-pause
+      # that `mode: development` would otherwise apply — verified by deploying
+      # with UNPAUSED and reading the job back, which showed a live weekly cron.
+      # So the schedule is only ever as paused as this line says it is.
+      # While developing we trigger runs by hand:
+      #   databricks bundle run weekly_transform -t dev
+      # Flipping this to UNPAUSED belongs to a future `prod` target, not to dev.
+      schedule:
+        quartz_cron_expression: "0 0 8 ? * WED"
+        timezone_id: America/Los_Angeles
+        pause_status: PAUSED
+
+      job_clusters:
+        - job_cluster_key: ingest_cluster
+          new_cluster:
+            spark_version: ${var.ingest_spark_version}
+            node_type_id: ${var.ingest_node_type}
+
+            # SINGLE NODE (driver only, no workers) — this is a hard constraint,
+            # not a preference. Each Databricks node on GCP provisions 30 GB
+            # pd-ssd (boot) + 150 GB pd-balanced (local storage) = 180 GB, and
+            # pd-balanced counts against the SSD_TOTAL_GB quota despite the name.
+            # The us-west1 quota is 500 GB, so at most 2 nodes fit. The previous
+            # 1 driver + 2 workers needed 540 GB and could never launch: the
+            # weekly schedule failed 5/5 times from 2026-07-15 with
+            # GCP_RESOURCE_QUOTA_EXCEEDED. One node = 180 GB, comfortably under.
+            #
+            # Capacity is not a concern: the full 39,723-file bootstrap was
+            # ingested on a single-node interactive cluster in July. A weekly
+            # increment is a few hundred files.
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+            custom_tags:
+              ResourceClass: SingleNode
+
+            # UNITY CATALOG. Without this the cluster boots on the legacy Hive
+            # metastore, where spark_catalog only accepts two-part names — and the
+            # notebook's three-part `corn_off_the_cob.bronze.matters` fails with
+            # REQUIRES_SINGLE_PART_NAMESPACE. Clusters created in the UI default to
+            # a UC-enabled mode, so this gap only shows up for bundle-declared
+            # clusters: the interactive cluster that ran the July bootstrap had
+            # USER_ISOLATION, while every job cluster came up with mode None.
+            data_security_mode: SINGLE_USER
+            single_user_name: ${workspace.current_user.userName}
+
+            # A CLASSIC (non-serverless) cluster is what can read the external GCS
+            # bucket. No google_service_account set -> it uses the workspace
+            # default SA, which already has bucket access (same as your
+            # interactive cluster).
+
+      tasks:
+        # 1) Ingest new files into bronze (classic cluster, reads gs://cotc_raw).
+        - task_key: bronze_ingest
+          job_cluster_key: ingest_cluster
+          notebook_task:
+            notebook_path: databricks/bronze_autoloader_databricks.py
+
+        # 2) Transform silver -> gold -> view with dbt (serverless SQL warehouse).
+        - task_key: dbt_build
+          depends_on:
+            - task_key: bronze_ingest
+          dbt_task:
+            project_directory: dbt
+            commands:
+              - "dbt deps"
+              # --vars '{prod_schemas: true}' is what makes this run write to the
+              # REAL `silver` / `gold`. Without it, generate_schema_name.sql
+              # sandboxes every model behind the target schema (dev_lynn_gold and
+              # so on) — see that macro for why the safe behaviour is the default.
+              # This is the only place in the project that opts into production.
+              - "dbt build --vars '{prod_schemas: true}'"
+            warehouse_id: ${var.warehouse_id}
+            catalog: corn_off_the_cob   # pin the target catalog (models set their own silver/gold schema)
+            schema: gold                # fallback default schema; our models override per-folder
+          # The dbt CLI process itself runs on this small serverless environment;
+          # the SQL it issues runs on warehouse_id above.
+          environment_key: dbt_cli
+
+      # Serverless environment that hosts the dbt CLI for the dbt_task.
+      environments:
+        - environment_key: dbt_cli
+          spec:
+            client: "1"
+            dependencies:
+              - dbt-databricks==1.12.2

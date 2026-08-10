@@ -98,13 +98,15 @@ in.
 │   ├── fetch.py                #   rate-limited HTTP + retry
 │   ├── history_detail.py       #   roll-call vote parser
 │   └── tests/                  #   offline golden tests (run in CI)
-├── databricks/                 # Databricks notebooks (the lakehouse pipeline)
-│   ├── silver_autoloader_databricks.py    # bronze JSON → silver staging (Auto Loader)
-│   ├── silver_load_databricks.py          # silver loaders
-│   ├── silver_load_meetings_databricks.py
-│   ├── gold_merge_databricks.py           # silver → gold star (dedup + MERGE)
-│   ├── gold_star_databricks.py            # gold star builders
-│   └── gold_dim_matter_databricks.py
+├── databricks/                 # the one notebook the pipeline still uses
+│   └── bronze_autoloader_databricks.py    # GCS JSON → bronze Delta (Auto Loader)
+├── dbt/                        # silver + gold transforms (owns everything after bronze)
+│   ├── models/staging/         #   8 stg_* — flatten nested bronze
+│   ├── models/intermediate/    #   8 int_* — latest-wins dedup
+│   ├── models/gold/            #   star schema + schema.yml (docs & tests)
+│   ├── tests/                  #   singular data tests
+│   └── macros/                 #   surrogate keys, dev/prod schema routing
+├── databricks.yml              # Asset Bundle: the weekly Job, as code
 ├── scripts/
 │   └── backfill.sh             # one-shot 2000→2026 deep-history scrape (resumable)
 ├── terraform/                  # GCP IaC: buckets + weekly scrape (Cloud Run Job + Scheduler)
@@ -121,9 +123,10 @@ in.
 ├── sample/                     # small sample of scraped JSON for local testing
 │   ├── matters/ingest_date=.../
 │   └── meetings/ingest_date=.../
-├── sfchronicle_podcast_ingest/ # podcast bronze→silver (Whisper, enrich, query)
+├── sfchronicle_podcast_ingest/ # podcast bronze→silver (Whisper, enrich, RAG)
 │   ├── README.md
 │   ├── docs/                   # M1 footprint, M2 deep-dive plan
+│   ├── rag/                    # free keyword retrieve → top-3 chunks
 │   └── ingest / transcribe / enrich / silver / query_silver
 ├── requirements.txt
 ├── TODO.md
@@ -134,10 +137,12 @@ in.
 
 RSS → GCS audio → Whisper transcripts → rule enrichment → SQLite + GCS JSONL.
 No Google Speech-to-Text. Weekly Cloud Run Sunday 03:00 PT (budget-capped Whisper).
+Free keyword RAG: natural language → top 3 quote/title/URL chunks (or `no_recent_data`).
 
 - [Package README](sfchronicle_podcast_ingest/README.md)
 - [Data footprint (M1)](sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md)
 - [Deep-dive plan (M2)](sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md)
+- [RAG retrieve](sfchronicle_podcast_ingest/rag/README.md)
 
 See the design docs for the full reasoning behind the architecture:
 
@@ -176,7 +181,96 @@ they're identical on every run and safe for incremental MERGE.
 
 `meeting_sk` on the fact tables is **nullable** — it's populated only when an action/vote resolves
 to a known meeting via `history_id` (procedural actions like clerk referrals never occur in a
-meeting).
+meeting). This is not a rare edge case: **58%** of `fact_matter_action` rows (103,669 of 179,247)
+and **3.7%** of `fact_vote` rows (21,828 of 587,165) have no meeting. Join with `LEFT JOIN` —
+filtering on `meeting_sk` silently drops most of the action history.
+
+---
+
+## Using the warehouse
+
+The gold tables live in a Databricks SQL warehouse, reachable over JDBC/ODBC from **any** client —
+you do not have to work inside the Databricks web UI. Notebooks, VS Code, DataGrip, DBeaver, a
+local Python script and dbt all connect the same way.
+
+### Connection details
+
+| | |
+|---|---|
+| Host | `8259559357598229.9.gcp.databricks.com` |
+| HTTP path | `/sql/1.0/warehouses/aa8398aa70d15ec5` |
+| Catalog | `corn_off_the_cob` |
+| Auth | your own credentials — see below |
+
+For authentication, prefer **OAuth** over a personal access token:
+
+```bash
+databricks auth login --host https://8259559357598229.9.gcp.databricks.com --profile DEFAULT
+```
+
+This opens a browser, stores refreshing credentials in your OS keyring, and never expires on you.
+Personal access tokens still work and are what the dbt profile uses, but Databricks now labels them
+legacy — and a silently expired one cost this project a week in July.
+
+### Reading from Python
+
+```bash
+pip install databricks-sql-connector
+```
+
+```python
+from databricks import sql
+
+with sql.connect(
+    server_hostname="8259559357598229.9.gcp.databricks.com",
+    http_path="/sql/1.0/warehouses/aa8398aa70d15ec5",
+    access_token="dapi...",           # or use OAuth via auth_type="databricks-oauth"
+) as conn, conn.cursor() as cur:
+    cur.execute("SELECT * FROM corn_off_the_cob.gold.member_vote_record LIMIT 10")
+    for row in cur.fetchall():
+        print(row)
+```
+
+`member_vote_record` is the place to start — one row per vote with the member, legislation, outcome,
+body and meeting already joined on, so you need no joins of your own.
+
+### What you can and cannot touch
+
+| schema | access |
+|---|---|
+| `gold` | **read only** — `SELECT` on all 10 relations |
+| `silver`, `bronze` | no access (internal; shapes change without notice) |
+| `dev_<yourname>` | **yours** — you own it, build whatever you like |
+
+Every gold table and column carries a description in Unity Catalog, so **Catalog Explorer** is a
+real reference: open `corn_off_the_cob` → `gold` and read the column comments rather than guessing
+what `lifecycle` or `final_disposition` mean.
+
+### Building your own models on top
+
+Read from `gold`, write into your own schema. Ask an admin for one:
+
+```sql
+CREATE SCHEMA corn_off_the_cob.dev_yourname;
+ALTER SCHEMA corn_off_the_cob.dev_yourname OWNER TO `you@example.com`;
+```
+
+If you are working in **this** dbt project, set `schema: dev_yourname` in your `profiles.yml`
+(see `dbt/profiles.yml.example`). Every model then builds into your schema:
+
+```
+dbt run          ->  dev_yourname.dim_matter     (your sandbox)
+```
+
+Production is opt-in and deliberately awkward to trigger by accident:
+
+```
+dbt run --vars '{prod_schemas: true}'   ->  gold.dim_matter   (the live tables)
+```
+
+Prefer letting the scheduled Databricks Job build production. Sources are never redirected, so your
+sandbox reads the **real** `bronze` data — you develop against production data without being able to
+damage it.
 
 ---
 
@@ -209,36 +303,41 @@ in `TODO.md` closes that gap.)
 
 Per-file layout and what each existing partition covers: [scrape/README.md](scrape/README.md).
 
-### 2. Silver — incremental ingestion
+### 2. Bronze — incremental ingestion
 
-In Databricks, run **`transform/silver_autoloader_databricks.py`**. Set in the config cell:
+`databricks/bronze_autoloader_databricks.py` lands raw JSON into `bronze.matters` /
+`bronze.meetings`, nesting intact. Auto Loader reads **only files it hasn't processed before**
+(tracked in a checkpoint Volume), so each run ingests just the new partition.
 
-```python
-CATALOG = "corn_off_the_cob"   # your Unity Catalog catalog
-SRC     = "gs://cotc_raw"       # the raw bucket
-CKPT    = "/Volumes/<catalog>/silver/raw/_checkpoints"   # Auto Loader checkpoint (managed Volume)
+Must run on a **classic** cluster with Unity Catalog enabled — serverless blocks external-GCS
+egress, and without UC the notebook's three-part table names fail. Both are already set in
+`databricks.yml`.
+
+### 3. Silver + gold — dbt
+
+Everything after bronze is dbt. There are no gold notebooks any more.
+
+```bash
+cd dbt
+dbt build                                # builds into YOUR sandbox schema
+dbt build --vars '{prod_schemas: true}'  # builds the real silver / gold
 ```
 
-Auto Loader reads **only files it hasn't processed before** (tracked in the checkpoint), so each run
-ingests just the new partition. First run ingests the full backfill; subsequent runs are
-incremental.
+`dbt build` runs the models *and* the 49 data tests. See
+[dbt/profiles.yml.example](dbt/profiles.yml.example) for connection setup and why the plain command
+is the safe one.
 
-### 3. Gold — star schema
+### 4. Or just run the whole thing
 
-Run **`transform/gold_merge_databricks.py`** (set the same `CATALOG`). This:
+Both steps above are wired together as a Databricks Job, defined in `databricks.yml`:
 
-1. collapses silver to each matter's/meeting's **latest scrape** (latest-wins dedup),
-2. builds the dimensions, facts, and bridges,
-3. **`MERGE`s** them into the gold tables — updating changed matters in place, inserting new ones,
-   and skipping unchanged rows (idempotent).
+```bash
+databricks bundle deploy -t dev
+databricks bundle run weekly_transform -t dev
+```
 
-### 4. Serving view
-
-Run **`transform/gold_serving_view_databricks.py`** to create the `member_vote_record` view the
-dashboard consumes.
-
-> **Run order matters:** silver → gold → view. The gold notebook is the single source of truth for
-> the gold layer; do not also run earlier overwrite-style gold notebooks.
+It runs `bronze_ingest` → `dbt_build`, on a Wednesday 08:00 PT schedule that is **paused** in the
+dev target. Failures email the job owner.
 
 ---
 

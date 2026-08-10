@@ -5,6 +5,9 @@ raw/
 warehouse/db/
 warehouse/exports/
 
+# retired DuckDB-era artifacts (superseded by the Databricks lakehouse)
+warehouse/
+
 # dev env / scratch
 .env
 .env.*
