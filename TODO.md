@@ -1,47 +1,73 @@
 # TODO
 
-## ⚠️ Weekly scraper has produced no data since 2026-07-22 (scraper owner)
+## Weekly scraper — diagnosed 2026-08-08: one real gap, one false alarm
 
-Found 2026-08-08 while verifying the transform pipeline. **Not diagnosed — handing
-over to whoever owns the scrape slice.** The transform half is healthy: the weekly
-Databricks Job now runs green end to end and correctly ingested everything
-available. There is simply nothing new to ingest.
+Raised 2026-08-08 as "no data since 2026-07-22, not diagnosed". Diagnosed the same
+day. **The scraper is not broken.** Of the two suspect runs, only 2026-07-29 lost
+data; 2026-08-05 was correct behavior.
 
-**Evidence**
+| ingest_date | matters | meetings | Cloud Run execution | verdict |
+|---|---|---|---|---|
+| 2026-07-22 | 49 | 3 | success, ~3 min | fine |
+| 2026-07-29 | *(no partition)* | — | never started — "Resource readiness deadline exceeded" | **real gap** |
+| 2026-08-05 | 0 | 0 | SUCCESS in ~74 s, wrote nothing | correct — recess |
 
-| ingest_date | matters | meetings | Cloud Run execution |
-|---|---|---|---|
-| 2026-07-22 | 49 | 3 | success, ~3 min |
-| 2026-07-29 | *(no partition)* | — | never started — "Resource readiness deadline exceeded" |
-| 2026-08-05 | **0** | **0** | reported **SUCCESS** in ~74 s, wrote nothing |
+### 2026-08-05 was not a failure — SF is in summer recess
 
-Two different failures:
+The original note called this "the more dangerous one" on the theory that exit 0
+with no output hides a silent outage. It doesn't here. The Board of Supervisors
+holds a **summer recess**, and the last meeting on the *entire* 2026 Legistar
+calendar is **7/28/2026**. There were no August meetings to scrape and no matters
+created that week.
 
-1. **2026-07-29** — the Cloud Run container never started. Infra-level; no partition
-   was created at all.
-2. **2026-08-05** — the more dangerous one. The job exited **0**, created
-   `gs://cotc_raw/{matters,meetings}/ingest_date=2026-08-05/`, and put no files in
-   it. It also finished in ~74 s against ~3 min on 2026-07-22, so it did far less
-   work rather than failing at the end. **Exit 0 with no output is
-   indistinguishable downstream from "a quiet week at City Hall"** — nothing in the
-   pipeline can tell the difference, and nothing alerted.
+The Aug 5 logs say exactly this once you know what recess looks like:
 
-**Where to start**
+```
+[1/2] meetings → date window 2026-07-29..2026-08-05 → 0 of 0 meetings   (August calendar is empty)
+[1b]  year pass → enumerated 134 calendar rows → 0 in window            (nothing dated after 7/28)
+[2/2] matters  → slice 2026-07-29..2026-08-04 → 0 matters
+```
 
-- Container logs for execution `legistar-weekly-cfhbs` (2026-08-05, project
-  `corn-off-the-cobb`, region `us-west1`) — the ~74 s runtime should show whether
-  the window query returned nothing or the scrape bailed early.
-- Scheduler is fine and still firing: `legistar-weekly`, `0 6 * * 3`, ENABLED, last
-  attempt 2026-08-05T13:00:05Z. The trigger is not the problem.
-- `origin/fix/month-boundary-window` looks like an obvious lead given the Jul→Aug
-  timing, but it has **no commits ahead of `origin/main`** — probably already
-  merged. Don't assume it explains this.
+The ~74 s runtime is the tell in the *other* direction: the run did all its normal
+enumeration work (both meeting passes plus two matter slices) and simply found
+nothing. A scrape that bailed early would not have reached `[2/2]`.
 
-**Worth fixing regardless of root cause:** the scraper should fail loudly when a
-run produces zero files, rather than exiting 0. A successful run that collects
-nothing is either a real outage or a real change in the source, and both deserve an
-alarm. The Databricks side got `email_notifications.on_failure` on 2026-08-08 for
-the same reason.
+Reproduce against the live site — no Databricks, no GCP:
+
+```bash
+python -m scrape.legistar_meetings --year 2026 --from 2026-07-01 --to 2026-08-08 --raw-dir /tmp/y --date 2026-08-08
+```
+
+Expect 18 meetings, none later than 7/28. Recess ends when the calendar shows
+September rows; the weekly job needs no change to pick them up.
+
+### The real gap: 2026-07-29 never ran
+
+The container never started, so no partition was created at all. That window is the
+last active week before recess, and it is the only data actually missing:
+
+- **41 matters** created 2026-07-22..2026-07-28
+- **3 meetings** — Rules 7/27, Land Use and Transportation 7/27, Board of
+  Supervisors 7/28
+
+Backfill is a single re-run of the existing job with the window pinned; the
+scrapers are idempotent and `collect()` de-dups by matter `ID=`, so overlap with
+the 7/22 partition is harmless.
+
+### Still worth fixing: nothing alerts on the scrape half
+
+The 2026-07-29 miss went unnoticed for ten days because **the Cloud Run job has no
+alerting at all** — `corn-off-the-cobb` has zero notification channels. The
+Databricks side got `email_notifications.on_failure` on 2026-08-08; the scrape side
+never got the equivalent. An execution that fails to start is the exact case that
+needs it.
+
+The originally proposed "fail loudly when a run produces zero files" is **not
+safe as stated** — during recess every weekly run legitimately writes zero files,
+so a bare zero-file alarm would fire every Wednesday until September and train
+everyone to ignore it. If it gets built, the condition has to be *zero files
+**and** the calendar had meetings in the window* — i.e. the scraper knows the
+difference between "nothing happened" and "I failed to see what happened."
 
 ## Open-matter re-scrape (incremental status refresh)
 

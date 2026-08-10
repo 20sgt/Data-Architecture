@@ -8,6 +8,16 @@
 // MatterHistory id both slices carry), NOT by cross-slice dedup. Legislation also scrapes every
 // matter on a scraped agenda (the agenda discovery feed), so its coverage is a superset of the
 // meeting slice and no "html_stub" matters arise.
+//
+// STATUS MARKERS — this file is the DESIGN. dbt builds a subset of it. Every table carries a
+// STATUS line so a reader can tell the two apart without opening dbt/models/gold/:
+//
+//   BUILT           a dbt model exists and the table is populated in corn_off_the_cob.gold
+//   NOT BUILT       designed and sourceable, but no dbt model yet — a ticket, not a decision
+//   NO SOURCE       designed before we knew the source doesn't exist; needs a data source first
+//
+// Keep these current when a model lands. An unmarked table reads as "someone forgot", which is
+// how five tables came to look identical to the one table that was simply missing.
 
 Project sf_legislation_analytics {
   database_type: 'PostgreSQL'
@@ -26,6 +36,7 @@ Project sf_legislation_analytics {
 // ============================================================
 
 Table dim_person {
+  // STATUS: BUILT — dbt/models/gold/dim_person.sql
   person_sk int [pk, note: 'Surrogate — regenerated per SCD2 version']
   person_id int [not null, note: 'Legistar PersonId — shared across versions']
   full_name text [not null]
@@ -46,6 +57,7 @@ Table dim_person {
 }
 
 Table dim_committee {
+  // STATUS: BUILT — dbt/models/gold/dim_committee.sql
   committee_sk int [pk]
   committee_id int [not null, note: 'Legistar BodyId']
   committee_name text [not null]
@@ -56,6 +68,7 @@ Table dim_committee {
 }
 
 Table dim_matter {
+  // STATUS: BUILT — dbt/models/gold/dim_matter.sql
   matter_sk int [pk]
   matter_id int [note: 'Legistar MatterId (from the LegislationDetail URL)']
   matter_file text [note: 'File number, e.g. 240123 — the ONLY join key from a meeting agenda row']
@@ -75,6 +88,9 @@ Table dim_matter {
 }
 
 Table dim_subject {
+  // STATUS: NO SOURCE — needs a subject/tag feed that does not exist. Do not build.
+  //   Topic questions are answered today without this table: app/ask.py writes
+  //   LIKE '%homeless%' OR '%encampment%' per question against matter_title/matter_name.
   subject_sk int [pk]
   subject_id int [not null, note: 'Legistar IndexId']
   subject_name text [not null, note: 'Housing, Transportation, Public Safety, etc.']
@@ -83,6 +99,7 @@ Table dim_subject {
 }
 
 Table dim_document {
+  // STATUS: BUILT — dbt/models/gold/dim_document.sql
   document_sk int [pk]
   document_id int [note: 'Legistar MatterAttachmentId; NULL for meeting docs (agenda/minutes/transcript have none)']
   document_source text [not null, note: 'CHECK: matter_attachment, meeting_agenda, meeting_minutes, transcript']
@@ -99,6 +116,7 @@ Table dim_document {
 }
 
 Table dim_meeting {
+  // STATUS: BUILT — dbt/models/gold/dim_meeting.sql
   meeting_sk int [pk]
   meeting_id int [not null, note: 'Legistar EventId']
   event_guid text [not null, note: 'Legistar EventGuid — REQUIRED for every detail/document fetch (ID alone -> HTTP 410); cannot be guessed']
@@ -121,15 +139,23 @@ Table dim_meeting {
 // ============================================================
 
 Table dim_action_type {
-  action_type_code text [pk, note: 'Canonical code. Vocabulary (source of truth = scrape/action_types.py DIM_ACTION_TYPE_SEED): INTRODUCED, REFERRED, RECOMMENDED, PASSED_COMMITTEE, CONTINUED, PASSED_BOARD_1ST_READING, PASSED_BOARD_2ND_READING, ADOPTED, APPROVED, AMENDED, WITHDRAWN, TABLED, FILED, OTHER']
+  // STATUS: NOT BUILT — and the normalization it describes was never written either.
+  //   fact_matter_action.action_type_code currently holds the RAW uppercased Legistar
+  //   label, not a code from the vocabulary below. Real values in gold today include
+  //   'APPROVED', 'RECEIVED AND ASSIGNED', and an 82-character
+  //   'REFERRED FOR ADOPTION WITHOUT COMMITTEE REFERENCE AGENDA AT THE NEXT BOARD MEETING'.
+  //   Treat that column as free text until this lands. Anything generating SQL against
+  //   the gold schema (app/ask.py) will otherwise assume a clean 14-value enum.
+  action_type_code text [pk, note: 'Canonical code, PLANNED — see STATUS. Intended vocabulary: INTRODUCED, REFERRED, RECOMMENDED, PASSED_COMMITTEE, CONTINUED, PASSED_BOARD_1ST_READING, PASSED_BOARD_2ND_READING, ADOPTED, APPROVED, AMENDED, WITHDRAWN, TABLED, FILED, OTHER']
   action_category text [note: 'introduction / referral / committee / board / amendment / disposition']
   description text
 
   Note: '''
-    Lookup replacing the old inline CHECK on action_type_code.
-    Raw Legistar labels map to these codes via the shared scrape/action_types.py module (the single
-    label->code authority). Single-producer: only the legislation slice writes fact_matter_action,
-    so labels are normalized in one place.
+    Lookup intended to replace the inline CHECK on action_type_code. NOT BUILT.
+    An earlier version of this note named scrape/action_types.py as the single
+    label->code authority. That module does not exist and never did; the mapping has
+    no home yet. Whoever builds this picks the home — a dbt seed is the obvious one,
+    since the mapping is reference data and the only writer is already dbt.
   '''
 }
 
@@ -138,6 +164,7 @@ Table dim_action_type {
 // ============================================================
 
 Table fact_matter_action {
+  // STATUS: BUILT — dbt/models/gold/fact_matter_action.sql
   matter_action_sk int [pk]
   matter_sk int [ref: > dim_matter.matter_sk]
   meeting_sk int [ref: > dim_meeting.meeting_sk, note: 'Nullable; filled by an EXACT join on history_id to the meeting map (NULL for administrative/non-meeting actions)']
@@ -155,6 +182,7 @@ Table fact_matter_action {
 }
 
 Table fact_vote {
+  // STATUS: BUILT — dbt/models/gold/fact_vote.sql
   vote_sk int [pk]
   matter_sk int [ref: > dim_matter.matter_sk]
   meeting_sk int [ref: > dim_meeting.meeting_sk, note: 'Nullable; filled by the exact history_id join']
@@ -173,6 +201,7 @@ Table fact_vote {
 }
 
 Table fact_committee_membership {
+  // STATUS: NOT BUILT — sourceable, and the path is settled. See TODO.md.
   membership_sk int [pk]
   person_sk int [ref: > dim_person.person_sk]
   committee_sk int [ref: > dim_committee.committee_sk]
@@ -184,9 +213,14 @@ Table fact_committee_membership {
   Note: '''
     SCD2-shaped fact for tenure on a committee.
     Grain: one row per (person, committee, position, effective_from).
-    UNPOPULATED, but the source EXISTS (confirmed 2026-06-25): PersonDetail.aspx lists the bodies a
-    person sits on (Department Name / Title / Start Date / End Date / Appointed By); a future
-    People.aspx -> PersonDetail pass can populate it. position<-Title, effective_from/to<-Start/End.
+    UNPOPULATED. The source exists, but NOT the one first identified here: the
+    People.aspx -> PersonDetail.aspx scrape proposed on 2026-06-25 was verified dead on
+    2026-07-10 — PersonDetail returns HTTP 410 Gone for former members even with a valid
+    ID+GUID, so it can never enrich the historical members the backfill introduces.
+    Use the Legistar web API instead (enabled for sfgov, plain JSON, no browser):
+      GET /v1/sfgov/officerecords?$filter=OfficeRecordPersonId eq <id>
+    which returns membership history back to 1995. position<-Title,
+    effective_from/to<-Start/End. Full notes, including the PersonActiveFlag trap, in TODO.md.
   '''
 }
 
@@ -195,6 +229,7 @@ Table fact_committee_membership {
 // ============================================================
 
 Table bridge_matter_subject {
+  // STATUS: NO SOURCE — blocked on dim_subject. Do not build.
   matter_sk int [ref: > dim_matter.matter_sk]
   subject_sk int [ref: > dim_subject.subject_sk]
 
@@ -206,6 +241,7 @@ Table bridge_matter_subject {
 }
 
 Table bridge_matter_sponsor {
+  // STATUS: BUILT — dbt/models/gold/bridge_matter_sponsor.sql
   matter_sk int [ref: > dim_matter.matter_sk]
   person_sk int [ref: > dim_person.person_sk, note: 'SCD2 row valid at introduction_date']
   sponsor_type text [not null, note: 'CHECK: Primary, Co']
@@ -218,6 +254,7 @@ Table bridge_matter_sponsor {
 }
 
 Table bridge_matter_document {
+  // STATUS: BUILT — dbt/models/gold/bridge_matter_document.sql
   matter_sk int [ref: > dim_matter.matter_sk]
   document_sk int [ref: > dim_document.document_sk]
 
@@ -229,6 +266,12 @@ Table bridge_matter_document {
 }
 
 Table bridge_meeting_document {
+  // STATUS: NOT BUILT — and closer than it looks. dbt/models/staging/stg_meeting_documents.sql
+  //   already exists and is referenced by NOTHING: meeting documents are scraped, staged, and
+  //   then dropped before gold. Remaining work is an int_ dedup model, a union into
+  //   dim_document (with document_source set, document_id NULL), and this bridge.
+  //   Sizing: 4,743 meetings x 3 docs ~= 14K rows. NOTE: body_text is empty on every sampled
+  //   document, so this delivers URLs, not searchable agenda/minutes text.
   meeting_sk int [ref: > dim_meeting.meeting_sk]
   document_sk int [ref: > dim_document.document_sk]
 
@@ -237,4 +280,42 @@ Table bridge_meeting_document {
   }
 
   Note: 'M:M meetings and documents (agenda / minutes / transcript).'
+}
+
+// ============================================================
+// Serving layer
+// ============================================================
+
+Table member_vote_record {
+  // STATUS: BUILT — dbt/models/gold/member_vote_record.sql (materialized as a VIEW)
+  //   This is what actually gets queried. 587K rows. app/ask.py points the SQL planner
+  //   at it first, because it denormalizes member + legislation + outcome + meeting and
+  //   so answers most questions with no joins at all.
+  //   It was absent from this file until 2026-08-08 — the one table in the gold layer
+  //   that anything reads, missing from the diagram of the gold layer.
+  vote_sk bigint [pk, note: 'From fact_vote; one row per recorded vote']
+  vote_date date
+  vote_value text [note: 'Aye / No / Absent / Excused / Recused — raw Legistar label']
+  person_id text [note: 'Legistar PersonId — the stable join key to a member']
+  member_name text
+  matter_file text
+  matter_name text
+  matter_title text
+  matter_type text
+  matter_status text [note: 'Raw Legistar status label']
+  lifecycle text [note: 'Derived bucket: passed / in_works / other']
+  final_disposition text
+  committee_name text [note: 'The acting body']
+  meeting_date date [note: 'NULL when the vote does not resolve to a known meeting']
+  matter_sk bigint [ref: > dim_matter.matter_sk]
+  person_sk bigint [ref: > dim_person.person_sk]
+  committee_sk bigint [ref: > dim_committee.committee_sk]
+  meeting_sk bigint [ref: > dim_meeting.meeting_sk, note: 'Nullable — see fact_vote']
+
+  Note: '''
+    Serving view: ONE row per recorded vote, denormalized over dim_person, dim_matter,
+    dim_committee and dim_meeting. Every join is LEFT, so a vote is never dropped when a
+    lookup is missing — which is why meeting_date and meeting_sk are nullable here.
+    Not a table: recomputed on read, so it cannot drift from the dims it is built on.
+  '''
 }

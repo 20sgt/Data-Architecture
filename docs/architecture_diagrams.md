@@ -26,7 +26,7 @@ flowchart TD
         STG_SP["stg_sponsors\nmatter_id · sponsor_pos\nsponsor_name"]
     end
 
-    subgraph GOLD ["⭐  GOLD — Star schema (what the dashboard queries)"]
+    subgraph GOLD ["⭐  GOLD — Star schema (what the serving layer queries)"]
         direction TB
 
         subgraph DIMS ["Dimensions"]
@@ -49,16 +49,20 @@ flowchart TD
             direction LR
             BR_SP["bridge_matter_sponsor"]
             BR_D["bridge_matter_document"]
-            BR_S["bridge_matter_subject"]
+            BR_S["bridge_matter_subject\n⚠️ blocked on dim_subject"]
+        end
+
+        subgraph SERVING ["Serving view"]
+            MVR["member_vote_record\none row per vote, denormalized\n(member · matter · outcome · meeting)"]
         end
     end
 
-    DASH["📊 Streamlit dashboard\nvoting records · keyword search · weekly diff"]
+    DASH["🔎 Streamlit Q&A app\nquestion → SQL → answer\n+ podcast transcript search"]
 
     SRC -->|"weekly scrape:\nnew matters + re-scrape open matters"| SCRAPER
     SCRAPER --> RAW
 
-    RAW -->|"loader\n(next increment)"| STG_M & STG_A & STG_V & STG_AT & STG_SP
+    RAW -->|"Auto Loader → bronze,\nthen dbt staging models"| STG_M & STG_A & STG_V & STG_AT & STG_SP
 
     STG_M -->|"dedupe latest,\nSCD type 2 upsert"| DIM_M
     STG_A -->|"resolve body name\n→ committee_sk"| FACT_A
@@ -66,7 +70,8 @@ flowchart TD
     STG_AT --> DIM_D
     STG_SP -->|"pos 0=primary\npos 1+=co"| BR_SP
 
-    GOLD --> DASH
+    FACT_V --> MVR
+    MVR --> DASH
 ```
 
 ---

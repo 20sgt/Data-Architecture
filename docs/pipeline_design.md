@@ -1,9 +1,16 @@
 # Legislation Slice — Pipeline Design (ELT: raw landing zone → star schema)
 
-**Owner:** Lynn · **Status:** draft for group review · **Date:** 2026-06-11
+**Owner:** Lynn · **Status:** design record, written 2026-06-11 · **Superseded in parts**
 **Scope:** the legislation half of the architecture (matters, actions, votes, sponsors,
 documents). The meeting half (dim_meeting, calendar scrape) is owned separately; the
 cross-slice contract is defined in §5.
+
+> **Read this as a dated record of *why*, not a description of what runs today.** The
+> reasoning in §1–§5 still holds and is the reason the pipeline looks the way it does.
+> Specifics written before the build have drifted — the orchestrator named in §2 is
+> Databricks Jobs + Cloud Scheduler, not Airflow, and the §8 costing predates the move
+> off DuckDB/Ollama. For current state see [README](../README.md) (what runs),
+> [CHANGELOG](../CHANGELOG.md) (how it got there), and [TODO](../TODO.md) (what's open).
 
 ---
 
@@ -97,34 +104,27 @@ upserts and debugging.
   vote name conformance). Teammate's meeting scraper looks up `committee_sk` by `committee_id`
   from the pre-seeded dim.
 
-## 6. Proposed changes to the group ERD (please review)
+## 6. ERD changes — resolved
 
-1. **`dim_matter`: add status fields using SCD type 2** — `status text`, `lifecycle text`
-   (derived bucket: passed / in_works / other), `final_action_date date`, `enactment_date date`,
-   `enactment_number text`, plus the versioning columns already present on `dim_person`:
-   `effective_from date NN`, `effective_to date`, `is_current boolean NN`.
-   When a matter's status changes (e.g. `in_works` → `passed`), the old row is closed out
-   (`effective_to`, `is_current = false`) and a new row is inserted (new `matter_sk`). This
-   preserves every status transition — you can answer "when did this bill pass?" directly from the
-   dim, and the weekly-diff use case is a join of two `WHERE is_current = true` snapshots.
-   Queries for current state filter `WHERE is_current = true`. Consistent with how `dim_person`
-   is already modeled in the group ERD.
-2. **`fact_matter_action`: add `action_result text`** (Pass/Fail). Mapping: `action_type_code` ←
-   action (e.g. RECOMMENDED), `action_text` ← free text, `action_result` ← result column.
-3. **`meeting_sk` nullable** on both fact tables (see §5).
-4. **`dim_subject` has no data source yet.** Nothing on the Legistar pages emits subject tags.
-   Proposal: keep the tables in the DDL, populate later via keyword extraction from
-   `matter_name`/`matter_title` (or LLM tagging). Marked open.
-5. **Minor:** `requester` not scraped yet (one label-id addition); `sponsor_type` — Legistar
-   doesn't distinguish primary vs co-sponsor, so convention: first-listed = `primary`, rest = `co`.
+This section was a review request. The group adopted it: `dim_matter` carries `status`,
+`lifecycle`, `final_action_date`, `enactment_date`/`enactment_number`;
+`fact_matter_action` carries `action_result`; `meeting_sk` is nullable on both fact tables
+(see §5); and first-listed sponsor = `primary`, rest = `co`, since Legistar does not
+distinguish them.
 
-## 7. Data quality (Great Expectations bonus hook)
+One item stayed open: **`dim_subject` has no data source.** Nothing on the Legistar pages
+emits subject tags. Tracked in [README](../README.md) and [TODO](../TODO.md); the table is
+declared in `erd/schema.dbml` but has no dbt model.
 
-Staging is the natural validation point — fail loudly *before* facts are built:
-`vote_value ∈ {Aye, No, Absent, Excused, Recused}` · `matter_id` unique per partition ·
-`introduced` parses as a date · row count > 0 per weekly run.
+## 7. Data quality
 
-## 8. Cost model (draft)
+Validation landed as dbt tests rather than the Great Expectations hook sketched here:
+`dbt/models/gold/schema.yml` for column-level constraints, `dbt/tests/` for the singular
+tests (no unmapped dispositions, no bridge duplicate pairs, no `member_vote_record`
+fan-out). Same intent — fail before facts are served — in the tool that was already in the
+stack.
+
+## 8. Cost model (draft, pre-Databricks)
 
 | Component | Sizing assumption | Cost |
 |---|---|---|
@@ -136,11 +136,7 @@ Staging is the natural validation point — fail loudly *before* facts are built
 Honest scaling note for the rubric: real volume is sub-GB, so we *defend* scale-readiness
 (date-partitioned raw, incremental loads, columnar warehouse) rather than demonstrate TBs.
 
-## 9. Increments (small, reviewable)
+## 9. Increments
 
-1. **This doc + DDL** (staging + star) + DuckDB smoke test against the 5 spike samples ← *now*
-2. Loader: raw JSON → staging (idempotent per partition)
-3. Transforms: staging → dims/facts (latest-wins dedupe, SK lookups)
-4. Airflow DAG: scrape → load → transform → validate, weekly schedule
-5. 2020–2026 backfill run (polite, resumable)
-6. Databricks deploy · Ollama summaries · Streamlit
+Planned here, delivered elsewhere. [CHANGELOG](../CHANGELOG.md) is the real increment log —
+it records what actually shipped, in what order, and what broke on the way.
