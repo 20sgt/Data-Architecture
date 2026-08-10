@@ -54,11 +54,30 @@ def connect():
     )
 
 
+# Columns worth sampling values from are the small controlled vocabularies.
+# Skip anything that is an identifier, a URL, or free text — collect_set on
+# matter_name would build a 38k-element array to no purpose.
+_NOT_ENUM = re.compile(r"(_sk$|_id$|_url$|_date$|name|title|text|number|file)", re.I)
+ENUM_MAX = 15
+
+
 def gold_schema(conn, refresh=False):
     """Column list for every gold table, as text for the prompt.
 
-    Cached to disk: the schema changes only when dbt adds a model, and the
-    DESCRIBEs are ~10 round trips we don't want on every question.
+    Includes the distinct values of small controlled-vocabulary columns. Names
+    and types alone leave the model guessing at literals, and guessing is where
+    it goes wrong: asked for matters that did not pass, it rebuilt the answer
+    from LIKE '%pass%' patterns over final_disposition and missed by 408,
+    because it had no way to know `lifecycle` holds exactly
+    {passed, terminal_other, in_progress}.
+
+    Sampled from the data, NOT read from the Unity Catalog column comments.
+    The comments are wrong: vote_value's says "Aye, No, Absent, Excused,
+    Recused, etc." — but Recused never occurs, and Non-Voting, Vacant, Abstain
+    and Present, which do, are missing. Documentation drifts; the values are
+    the values.
+
+    Cached to disk: this is ~30 round trips, and it changes only when dbt does.
     """
     if os.path.exists(SCHEMA_CACHE) and not refresh:
         with open(SCHEMA_CACHE) as fh:
@@ -70,8 +89,21 @@ def gold_schema(conn, refresh=False):
         tables = [r[1] for r in cur.fetchall()]
         for t in tables:
             cur.execute(f"DESCRIBE TABLE {CATALOG}.gold.{t}")
-            cols = [f"{r[0]} {r[1]}" for r in cur.fetchall() if r[0] and not r[0].startswith("#")]
+            desc = [(r[0], r[1]) for r in cur.fetchall() if r[0] and not r[0].startswith("#")]
+            cols = [f"{c} {ty}" for c, ty in desc]
             out.append(f"{CATALOG}.gold.{t}(" + ", ".join(cols) + ")")
+
+            for c, ty in desc:
+                if ty != "string" or _NOT_ENUM.search(c):
+                    continue
+                cur.execute(
+                    f"SELECT DISTINCT {c} FROM {CATALOG}.gold.{t} "
+                    f"WHERE {c} IS NOT NULL LIMIT {ENUM_MAX + 1}"
+                )
+                vals = sorted(r[0] for r in cur.fetchall())
+                if vals and len(vals) <= ENUM_MAX:
+                    listed = ", ".join(repr(v) for v in vals)
+                    out.append(f"  -- {t}.{c} is one of: {listed}")
     text = "\n".join(out)
     with open(SCHEMA_CACHE, "w") as fh:
         fh.write(text)
@@ -223,7 +255,7 @@ Rules for `sql`:
 - When the question is about legislation, aggregate to ONE ROW PER MATTER, not
   one row per member. Carry `matter_file`, `matter_name`, `matter_type` and
   `final_disposition` through, and put the vote split in that same row — e.g.
-  count(*), and count_if(vote_value = 'Aye') / count_if(vote_value in ('No','Nay')).
+  count(*), and count_if(vote_value = 'Aye') / count_if(vote_value = 'No').
   A table of per-member totals says how often people voted; it cannot say what
   they voted ON, and that is usually what was asked.
 - Skip `matter_title` unless the question needs the full legal text. It runs to

@@ -32,59 +32,59 @@ import ask
 #   "refuse"       — a mutation attempt; passing means nothing mutating reaches the warehouse
 QUESTIONS = [
     dict(id="q01", expect="match",
-         q="How many votes are recorded in total?",
+         q="How many votes are recorded in total? Return exactly one row with one column: the count.",
          sql="select count(*) from {c}.gold.fact_vote"),
 
     dict(id="q02", expect="match",
-         q="Which supervisor has voted No the most times? Give the name and the count.",
-         note="'No' vs 'Nay' — vote_value is a raw Legistar passthrough with no accepted_values test",
+         q="Which single supervisor has voted No the most times? Return exactly one row with two columns: the name and the number of No votes.",
+         note="vote_value is a raw Legistar passthrough with no accepted_values test",
          sql="""select member_name, count(*) as n
                 from {c}.gold.member_vote_record
                 where vote_value in ('No','Nay')
                 group by member_name order by n desc, member_name limit 1"""),
 
     dict(id="q03", expect="match",
-         q="How many matters were introduced in 2024?",
+         q="How many matters were introduced in 2024? Return exactly one row with one column: the count.",
          sql="""select count(*) from {c}.gold.dim_matter
                 where year(introduced_date) = 2024"""),
 
     dict(id="q04", expect="match",
-         q="How many matters have each final disposition? List disposition and count.",
+         q="How many matters have each final disposition? Return one row per disposition with exactly two columns: the disposition and the count.",
          note="final_disposition vocabulary — the ERD's declared values are stale, dbt is truth",
          sql="""select final_disposition, count(*) as n
                 from {c}.gold.dim_matter group by final_disposition"""),
 
     dict(id="q05", expect="match",
-         q="How many matters are still in progress?",
+         q="How many matters are still in progress? Return exactly one row with one column: the count.",
          sql="""select count(*) from {c}.gold.dim_matter
                 where lifecycle = 'in_progress'"""),
 
     dict(id="q06", expect="match",
-         q="How many ordinances versus resolutions are there? Give the type and the count for just those two.",
+         q="How many ordinances versus resolutions are there? Return exactly two rows with two columns: the type and the count.",
          sql="""select matter_type, count(*) as n from {c}.gold.dim_matter
                 where matter_type in ('Ordinance','Resolution')
                 group by matter_type"""),
 
     dict(id="q07", expect="match",
-         q="What share of matter actions have no associated meeting? Give the count of actions with no meeting.",
+         q="How many matter actions have no associated meeting? Return exactly one row with one column: the count.",
          note="nullable meeting_sk — 58% of actions. An inner join silently loses them.",
          sql="""select count(*) from {c}.gold.fact_matter_action
                 where meeting_sk is null"""),
 
     dict(id="q08", expect="match",
-         q="Which five committees have held the most meetings? Name and count.",
+         q="Which five committees have held the most meetings? Return exactly five rows with two columns: the committee name and the number of meetings.",
          sql="""select c.committee_name, count(*) as n
                 from {c}.gold.dim_meeting m
                 join {c}.gold.dim_committee c on m.committee_sk = c.committee_sk
                 group by c.committee_name order by n desc, c.committee_name limit 5"""),
 
     dict(id="q09", expect="match",
-         q="How many votes did Connie Chan cast in 2025?",
+         q="How many votes did Connie Chan cast in 2025? Return exactly one row with one column: the count.",
          sql="""select count(*) from {c}.gold.member_vote_record
                 where member_name = 'Connie Chan' and year(vote_date) = 2025"""),
 
     dict(id="q10", expect="match",
-         q="Who are the five most frequent primary sponsors of legislation? Name and count.",
+         q="Who are the five most frequent primary sponsors of legislation? Return exactly five rows with two columns: the name and the count.",
          sql="""select p.full_name, count(*) as n
                 from {c}.gold.bridge_matter_sponsor b
                 join {c}.gold.dim_person p on b.person_sk = p.person_sk
@@ -92,35 +92,77 @@ QUESTIONS = [
                 group by p.full_name order by n desc, p.full_name limit 5"""),
 
     dict(id="q11", expect="match",
-         q="How many meetings were held in 2025?",
+         q="How many meetings were held in 2025? Return exactly one row with one column: the count.",
          sql="""select count(*) from {c}.gold.dim_meeting
                 where year(meeting_date) = 2025"""),
 
     dict(id="q12", expect="match",
-         q="For each vote value, how many times has it been recorded?",
+         q="For each distinct vote value, how many times has it been recorded? Return one row per value with exactly two columns: the value and the count.",
          sql="""select vote_value, count(*) as n
                 from {c}.gold.fact_vote group by vote_value"""),
 
     dict(id="q13", expect="match",
-         q="How many distinct people have ever cast a recorded vote?",
+         q="How many distinct people have ever cast a recorded vote? Return exactly one row with one column: the count.",
          sql="select count(distinct person_sk) from {c}.gold.fact_vote"),
 
     dict(id="q14", expect="match",
-         q="How many matters were enacted in 2023?",
+         q="How many matters were enacted in 2023? Return exactly one row with one column: the count.",
          sql="""select count(*) from {c}.gold.dim_matter
                 where year(enactment_date) = 2023"""),
 
     dict(id="q15", expect="match",
-         q="Which supervisor was excused most often in 2025? Name and count.",
+         q="Which single supervisor was excused most often in 2025? Return exactly one row with two columns: the name and the count.",
          sql="""select member_name, count(*) as n
                 from {c}.gold.member_vote_record
                 where vote_value = 'Excused' and year(vote_date) = 2025
                 group by member_name order by n desc, member_name limit 1"""),
 
     dict(id="q16", expect="match",
-         q="How many matters of each type were introduced in 2025?",
+         q="How many matters of each type were introduced in 2025? Return one row per type with exactly two columns: the type and the count.",
          sql="""select matter_type, count(*) as n from {c}.gold.dim_matter
                 where year(introduced_date) = 2025 group by matter_type"""),
+
+    # --- vocabulary questions -------------------------------------------------
+    # The agent is given column names and types, never the values inside them.
+    # These are answerable only if it guesses the exact literal. The UC comment
+    # on vote_value is itself wrong (it lists Recused, which never occurs, and
+    # omits Non-Voting, Vacant, Abstain, Present), so documentation would not
+    # save it here — only the real values would.
+
+    dict(id="h01", expect="match",
+         q="How many times has a member abstained on a vote? Return exactly one row with one column: the count.",
+         note="literal is 'Abstain', not 'Abstained'/'Abstention'. 9 rows in 587k.",
+         sql="""select count(*) from {c}.gold.fact_vote where vote_value = 'Abstain'"""),
+
+    dict(id="h02", expect="match",
+         q="How many vote records are marked as non-voting? Return exactly one row with one column: the count.",
+         note="literal is 'Non-Voting', hyphenated and title-cased",
+         sql="""select count(*) from {c}.gold.fact_vote where vote_value = 'Non-Voting'"""),
+
+    dict(id="h03", expect="match",
+         q="How many vote records correspond to a vacant seat? Return exactly one row with one column: the count.",
+         note="literal is 'Vacant'",
+         sql="""select count(*) from {c}.gold.fact_vote where vote_value = 'Vacant'"""),
+
+    dict(id="h04", expect="match",
+         q="How many matters reached a final outcome other than passing? Return exactly one row with one column: the count.",
+         note="lifecycle literal is 'terminal_other' — unguessable without the values",
+         sql="""select count(*) from {c}.gold.dim_matter where lifecycle = 'terminal_other'"""),
+
+    # --- structure questions --------------------------------------------------
+
+    dict(id="h05", expect="match",
+         q="Which body currently controls the most matters that are still in progress? Return exactly one row with two columns: the body and the count.",
+         sql="""select in_control, count(*) as n from {c}.gold.dim_matter
+                where lifecycle = 'in_progress' and in_control is not null
+                group by in_control order by n desc, in_control limit 1"""),
+
+    dict(id="h06", expect="match",
+         q="How many matters have no recorded action at all? Return exactly one row with one column: the count.",
+         note="anti-join; an inner join answers the opposite question",
+         sql="""select count(*) from {c}.gold.dim_matter m
+                where not exists (select 1 from {c}.gold.fact_matter_action a
+                                  where a.matter_sk = m.matter_sk)"""),
 
     dict(id="q17", expect="unanswerable",
          q="Which district does Connie Chan represent?",

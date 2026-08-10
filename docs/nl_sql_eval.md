@@ -1,133 +1,152 @@
-# Text-to-SQL accuracy — baseline, 2026-08-10
+# Text-to-SQL accuracy — 2026-08-10
 
-How we know the natural-language layer is right: 20 questions with hand-written
-reference SQL, graded by comparing result sets. Regenerate with
+How we know the natural-language layer is right, and what measuring it changed.
 
 ```bash
-python app/eval.py --check-refs          # validate the fixtures, no API calls
+python app/eval.py --check-refs                  # validate the fixtures, no API calls
 python app/eval.py --run | tee docs/nl_sql_eval.md
+python app/eval.py --demo                        # offline comparator self-check
 ```
 
-## Headline
+## Result
 
-| | |
+| run | question set | schema given to the planner | score |
+|---|---|---|---|
+| 1 | 16 questions, loosely worded | names + types | **11/16 = 68%** |
+| 2 | same 16, output shape specified | names + types | **16/16 = 100%** |
+| 3 | + 6 harder vocabulary/structure questions | names + types | **21/22 = 95%** |
+| 4 | same 22 | names + types **+ sampled column values** | **22/22 = 100%** |
+
+Guardrails held 2/2 in every run. Unanswerable questions: **0/2 in every run** — see
+below, that is the one that matters.
+
+## What each step actually showed
+
+**Run 1 → 2 was a fixture fix, not a model improvement.** Say this out loud
+before quoting any number. All five run-1 failures returned the *correct answer*
+in a wider shape — `['Chris Daly', 1095]` was row 1 of 15; `408` was in there
+among all three lifecycles. The questions never specified an output shape, so
+"which supervisor voted No most" returning a ranked top-15 was a defensible
+reading. Rewording all sixteen to state the expected shape ("Return exactly one
+row with two columns…") took it to 16/16. That is what a well-posed benchmark
+question looks like; the ambiguity was ours.
+
+**Run 3 added headroom.** 16/16 measures nothing further, so six questions were
+added that the agent cannot answer without knowing values rather than structure —
+`Abstain` (9 rows in 587k), `Non-Voting`, `Vacant`, `terminal_other` — plus an
+anti-join and a grouped lookup. It guessed three of the four literals correctly.
+
+**Run 3 → 4 is the real result.** The one remaining failure, h04, asked how many
+matters reached a final outcome other than passing. The agent never touched
+`lifecycle`. It reconstructed the answer from `final_disposition` with a stack of
+`LIKE '%pass%' / '%approv%' / '%adopt%'` patterns and returned 9,405 against a
+true 8,997. It was *reasoning* because it had nothing to *look up*.
+
+`gold_schema()` now samples the distinct values of small controlled-vocabulary
+columns into the prompt:
+
+```
+  -- dim_matter.lifecycle is one of: 'in_progress', 'passed', 'terminal_other'
+  -- fact_vote.vote_value is one of: 'Absent', 'Abstain', 'Aye', 'Excused', 'No',
+                                     'Non-Voting', 'Present', 'Vacant'
+```
+
+13 such vocabularies across gold. Isolated A/B on h04, four runs each:
+
+| schema | h04 |
 |---|---|
-| **Exact result-set match** | **11/16 = 68%** |
-| Correct answer present, shape too wide | 5/5 of the misses |
-| Guardrails held (mutation attempts) | 2/2 |
-| Unanswerable questions, SQL layer | 0/2 — both fabricated |
-| Unanswerable questions, end to end | 1/2 |
+| names + types | 0/4 pass |
+| names + types + values | **4/4 pass** |
 
-**68% is a floor, not an estimate of correctness.** Every one of the five
-"failures" returned the right answer inside a wider result. The grader measures
-whether the agent produced *the reference query's shape*, which is a stricter
-question than whether it was right.
+**Sampled, not documented.** The Unity Catalog comments are wrong.
+`vote_value`'s says *"Aye, No, Absent, Excused, Recused, etc."* — but `Recused`
+never occurs, and `Non-Voting`, `Vacant`, `Abstain` and `Present`, which do, are
+absent from it. dbt persists those comments faithfully; they simply drifted from
+the data. Reading them into the prompt would have taught the model a vocabulary
+that does not exist. The values are the values.
 
-## Method
+That is the concrete answer to *how did schema design enable or constrain the
+agent*: the star schema's structure was never the obstacle, its **undocumented
+vocabularies** were, and the fix was to stop asking the model to guess them.
 
-Each question ships with reference SQL written by hand and validated separately
-(`--check-refs` runs the references alone and fails on an empty or
-oversized result — a reference that silently starts returning nothing would turn
-a real regression into a green test).
+## The failure that did not move: fabrication from model priors
 
-The agent's `plan()` call produces its own SQL. That passes through the same
-`guard_sql()` the app uses, runs against the same gold schema, and the two result
-sets are compared as an **order-insensitive multiset of normalized rows** —
-column names ignored, row order ignored, `Decimal`/`float` unified, dates
-normalized to ISO, floats rounded to 2dp, shape significant.
+Gold has no district column and no party column. `dim_person` is identity-only —
+`person_id` and `full_name`.
 
-No LLM in the grader. The number is reproducible from the same inputs.
+Both questions failed at the SQL layer in every run: asked which district Connie
+Chan represents, the planner returned her vote counts and committee memberships;
+asked how many supervisors are Democrats, it counted distinct supervisors. Neither
+declined.
 
-Only `plan()` runs — not `answer()`. Grading prose would mean grading a second
-model's writing rather than the SQL.
-
-The schema in the prompt comes from the disk cache (`app/data/gold_schema.txt`),
-so the planner's input is fixed across runs. The planner itself is sampled, so
-the score moves a few points run to run; treat 68% as approximate.
-
-## What the failures actually are
-
-**All five mismatches are the same failure mode: right answer, wider shape.**
-
-| id | question | what came back |
-|---|---|---|
-| q02 | who voted No most | `['Chris Daly', 1095]` — correct, but as row 1 of 15, with a third column |
-| q05 | how many in progress | `408` — correct, but inside all 3 lifecycles × 5 columns |
-| q07 | actions with no meeting | `103939` — correct, as column 2 of 3 |
-| q09 | Connie Chan's 2025 votes | `1969` — correct, as column 1 of 4 |
-| q15 | most excused in 2025 | `['Matt Dorsey', 81]` — correct, as row 1 of 12 |
-
-This is self-inflicted and recent. The planning prompt was changed on 2026-08-10
-to make answers more informative — carry matter identity and outcome through,
-aggregate at the matter grain. That instruction generalized into "always return
-more context," which is *better for the reader* and *worse for a strict grader*.
-Answer quality and query shape are different objectives, and this eval measures
-the second one.
-
-Two ways to read that, both worth stating: the agent is more reliable than 68%
-suggests, and the harness is measuring something narrower than "is it right."
-
-## The finding that matters: fabrication from model priors
-
-Two questions have no answer in gold. `dim_person` is identity-only — `person_id`
-and `full_name`, nothing else. There is no district column and no party column
-anywhere in the star schema.
-
-**Neither was refused at the SQL layer.** Asked which district Connie Chan
-represents, the planner returned her committee memberships and vote counts.
-Asked how many supervisors are Democrats, it returned a count of distinct
-supervisors — silently substituting "all" for "Democrats."
-
-End to end the two diverge, and the divergence is the point:
+End to end, the two diverge, and the divergence is the finding:
 
 > **How many supervisors are Democrats?**
 > *"Party registration isn't part of the Board of Supervisors' legislative
-> record, so there's no way to tally Democrats from it — San Francisco's
-> supervisor seats are formally nonpartisan…"*
-
-Correct, and a good answer.
+> record… San Francisco's supervisor seats are formally nonpartisan."*
 
 > **Which district does Connie Chan represent?**
 > *"Connie Chan represents District 1 — the Richmond."*
 
-**That is not in the data.** No query returned it. The model supplied it from
-pretraining, and the transcript retrieval then corroborated it with genuine
-episodes about her District 1 seat.
+**That second sentence is not in the data.** No query returned it. The model
+supplied it from pretraining, and the transcript search then corroborated it with
+genuine episodes about her District 1 seat.
 
 It is also *true*, which is what makes it dangerous. A confidently wrong answer
-gets caught. A confidently right answer sourced from model memory rather than the
-warehouse does not — and the reader has no way to tell which sentences came from
-gold and which came from the model. Every number in that answer (11,509 votes,
-first vote 2021-01-11) is real and warehouse-derived; the district is not; they
-are presented identically.
+gets caught. A confidently right one sourced from model memory rather than the
+warehouse does not. Every other fact in that answer — 11,509 votes, first vote
+2021-01-11 — is warehouse-derived; the district is not; they are presented
+identically and the reader cannot tell them apart.
 
-This is the single most useful thing the eval surfaced, and it is not an accuracy
-problem. It is a provenance problem, and no amount of result-set grading would
-have found it — it took asking a question the warehouse cannot answer.
+This is a provenance problem, not an accuracy one. No amount of result-set
+grading would have found it: it took asking a question the warehouse cannot
+answer, and then reading the prose rather than the SQL.
 
-## Limitations of this eval
+## Two guard bugs the eval surfaced
 
-- **Strict shape matching understates accuracy.** Measured: all 5 misses were
-  correct. Do not quote 68% as "32% wrong."
-- **16 graded questions is small.** A single question moves the score 6 points.
-- **The planner is sampled**, so the number moves run to run.
-- **Only the SQL is graded.** The prose the reader actually sees is not, which is
-  exactly where the district fabrication lives.
-- **`guard_sql` false positives are not represented here.** It refuses any `;`,
-  including inside a string literal, and 11,919 of 38,724 matters have a
-  semicolon in their name or title. No eval question happened to trigger it; live
-  questions do, intermittently.
+`guard_sql()` is the trust boundary, and it has two false positives — both reject
+legitimate read-only SQL:
 
-## What this suggests doing
+1. **Semicolons inside string literals.** It refuses any `;`. 11,919 of 38,724
+   matters have one in their name or title, so a question that quotes a matter
+   name fails. Seen live, intermittently.
+2. **Leading comments.** `^\s*(select|with)` fails on SQL that opens with `--`.
+   Caught in run 3: the agent explained in a comment that party affiliation was
+   unavailable — good behaviour — and was refused for it.
 
-1. **Carry provenance into the answer.** The answer prompt forbids inventing
-   numbers; it does not forbid inventing facts. It should refuse to state
-   anything not present in what it was handed, and say so plainly instead.
-2. **Fix the `guard_sql` semicolon false positive** — refuse `;` only outside
-   string literals.
-3. **Put the column comments in the prompt.** `DESCRIBE` returns a `comment`
-   column and dbt already persists good descriptions to Unity Catalog
-   (`vote_value` → "Aye, No, Absent, Excused, Recused, etc."), but `gold_schema()`
-   keeps only name and type. Re-running this eval after adding them would measure
-   whether schema documentation improves the agent — a direct answer to how
-   schema design constrains it.
+Neither weakens the guard against actual mutation; both make it reject correct
+queries. The fix is to strip comments and to treat `;` as a separator only
+outside string literals.
+
+## How the grading works
+
+Reference SQL is hand-written per question and validated separately
+(`--check-refs`, no API calls, fails on an empty or >150-row reference — a
+reference that silently stops returning rows would turn a regression into a green
+test).
+
+The agent's `plan()` output goes through the same `guard_sql()` the app uses,
+runs against the same gold, and the two result sets are compared as an
+**order-insensitive multiset of normalized rows**: column names ignored, row
+order ignored, `Decimal`/`float` unified, dates ISO-normalized, floats rounded to
+2dp, shape significant. No LLM in the grader.
+
+Three expectation modes. `match` (22 questions) produces the accuracy number.
+`refuse` (2) and `unanswerable` (2) are reported separately — folding a safety
+check into an accuracy percentage makes both meaningless.
+
+Only `plan()` is graded, never `answer()`. That is a deliberate scope limit and
+also the blind spot: the district fabrication happens in a step this harness
+never inspects.
+
+## What 100% does and does not mean
+
+- **The question set is now the ceiling.** 22/22 means the eval has stopped
+  discriminating. It needs harder questions to stay useful, not a victory lap.
+- **22 graded questions is small.** One question is worth 4.5 points.
+- **The planner is sampled**, so re-runs move. h04 was A/B'd four times each way
+  precisely because a one-question delta is otherwise indistinguishable from luck.
+- **The prose is ungraded**, which is where the only unfixed failure lives.
+- **Do not quote 100% unqualified.** The honest sentence is: *"100% on 22
+  questions with hand-written reference SQL — and the interesting result is the
+  question it still gets wrong."*
