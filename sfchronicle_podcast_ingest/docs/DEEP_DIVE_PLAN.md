@@ -17,6 +17,10 @@ ignore ASR spelling. Quotes support citations. Cost stays low (Whisper + rules, 
 SQLite / GCS JSONL: `episodes`, `episode_bills`, `episode_topics`, `episode_people`,
 `episode_stances`, `episode_claims`. Query with `query_silver.py`.
 
+Free retrieve path (`rag/`): NL question + last-4-weeks gold matters JSON → top 3
+chunks `{quote, title, url}` via word overlap, or `no_recent_data` for a later LLM.
+No embeddings or paid APIs.
+
 ## How we’ll evaluate
 
 | KPI | Method |

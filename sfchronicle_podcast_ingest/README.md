@@ -28,8 +28,11 @@ chmod +x run_*.sh deploy_cloud.sh
 | Enrich | `./run_enrich.sh` |
 | Silver | `./run_silver.sh` |
 | Query | `./.venv/bin/python3 query_silver.py --bill prop_c` |
+| RAG (free) | `./.venv/bin/python3 -m rag.query "zoning on Carroll Avenue"` |
 
 On Cloud Run the attached service account replaces `GCP_SERVICE_ACCOUNT_KEY`.
+
+Free keyword RAG (no embeddings/LLM): see [rag/README.md](rag/README.md).
 
 ## Cloud (Sunday 03:00 PT)
 

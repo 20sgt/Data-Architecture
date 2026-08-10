@@ -1,0 +1,36 @@
+[
+  {
+    "matter_sk": "-4725228041210456338",
+    "matter_file": "250823",
+    "matter_id": "7501546",
+    "matter_name": "Planning Code, Zoning Map - 1236 Carroll Avenue",
+    "matter_type": "Ordinance",
+    "matter_title": "Ordinance amending the Zoning Map of the Planning Code to change the zoning use district designation of Assessor’s Parcel Block No. 4877, Lot Nos. 001, 002, 003, and 004, and Assessor’s Parcel Block No. 4852, Lot Nos. 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, and 022, the full width of Bancroft Avenue between Griffith Street and Hawes Street, and the full widths of Griffith Street and Hawes Street between Carroll Avenue and Armstrong Avenue, collectively known as 1236 Carroll Avenue, from Production, Distribution and Repair District-2 (PDR-2) to Public (P); changing the height and bulk district designation of the aforementioned parcels and Assessor’s Parcel Block No. 4852, Lot No. 001 from 40-X to 90-X; affirming the Planning Department’s determination under the California Environmental Quality Act; making findings of consistency with the General Plan, and the eight priority policies of Planning Code, Section 101; and making public necessity, convenience, and welfare findings under Planning Code, Section 302.",
+    "status": "Passed",
+    "lifecycle": "passed",
+    "final_disposition": "passed",
+    "introduced_date": "2025-07-29",
+    "first_committee_date": "2025-12-08",
+    "final_action_date": "2026-01-23",
+    "enactment_date": "2026-01-23",
+    "enactment_number": "005-26",
+    "aliases": ["1236 Carroll Avenue", "Carroll Avenue zoning", "File 250823"]
+  },
+  {
+    "matter_sk": "6950138081947191736",
+    "matter_file": "251002",
+    "matter_id": "7697869",
+    "matter_name": "Business and Tax Regulations Code - Application of Access Line Tax to Voice Over Internet Protocol Services",
+    "matter_type": "Ordinance",
+    "matter_title": "Ordinance amending the Business and Tax Regulations Code to revise how the Access Line Tax (“ALT”) applies to Voice Over Internet Protocol (“VoIP”) services to require collection and remittance of the ALT on VoIP services using the lower of the number of telephone numbers provided to a subscriber and the number of calls that the subscriber can make and/or receive at the same time using those telephone numbers.",
+    "status": "Passed",
+    "lifecycle": "passed",
+    "final_disposition": "passed",
+    "introduced_date": "2025-10-07",
+    "first_committee_date": "2026-01-28",
+    "final_action_date": "2026-02-13",
+    "enactment_date": "2026-02-13",
+    "enactment_number": "011-26",
+    "aliases": ["Access Line Tax", "VoIP", "File 251002"]
+  }
+]
