@@ -34,10 +34,20 @@ client = anthropic.Anthropic()
 
 # ---------------------------------------------------------------- warehouse
 
+CREDENTIALS = ("DBT_DATABRICKS_HOST", "DBT_DATABRICKS_HTTP_PATH", "DBT_DATABRICKS_TOKEN")
+
+
 def connect():
-    host = os.environ["DBT_DATABRICKS_HOST"]
+    # Nothing loads .env for us. A bare KeyError here reads like a bug in the
+    # app; it is almost always a shell that never sourced the file.
+    missing = [k for k in CREDENTIALS if not os.environ.get(k)]
+    if missing:
+        raise RuntimeError(
+            f"No warehouse credentials: {', '.join(missing)} not set. "
+            "Run `set -a; source .env; set +a` first (see .env.example)."
+        )
     return dbsql.connect(
-        server_hostname=host,
+        server_hostname=os.environ["DBT_DATABRICKS_HOST"],
         http_path=os.environ["DBT_DATABRICKS_HTTP_PATH"],
         access_token=os.environ["DBT_DATABRICKS_TOKEN"],
     )
@@ -243,6 +253,17 @@ def ask(question, conn=None):
 
 
 def demo():
+    # connect() must refuse with a legible message, not a bare KeyError, when
+    # the shell never sourced .env — the most common way to start this app.
+    saved = {k: os.environ.pop(k) for k in CREDENTIALS if k in os.environ}
+    try:
+        connect()
+        raise AssertionError("connect() ran with no credentials")
+    except RuntimeError as exc:
+        assert "source .env" in str(exc), exc
+    finally:
+        os.environ.update(saved)
+
     assert guard_sql("select 1").endswith("LIMIT 200")
     assert guard_sql("SELECT 1 limit 5") == "SELECT 1 limit 5"          # cap respected
     assert guard_sql("with a as (select 1) select * from a").startswith("with")

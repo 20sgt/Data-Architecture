@@ -60,11 +60,7 @@ def render_ask():
         return
 
     with st.spinner("Planning the query, running it, searching transcripts…"):
-        try:
-            out = ask.ask(question, conn=warehouse())
-        except Exception as exc:  # surface the failure rather than a blank page
-            st.error(f"{type(exc).__name__}: {exc}")
-            return  # not st.stop() — that would blank the other tab too
+        out = ask.ask(question, conn=warehouse())
 
     st.markdown(out["answer"])
 
@@ -148,7 +144,13 @@ with st.sidebar:
             st.session_state.q = ex
 
 tab_ask, tab_dash = st.tabs(["Ask", "Voting record"])
-with tab_ask:
-    render_ask()
-with tab_dash:
-    render_dashboard()
+
+# One handler, both tabs. Every path in here reaches the warehouse, and an
+# uncaught failure in either tab takes down the whole page — including the tab
+# that was working. Report it where it happened and leave the rest standing.
+for tab, render in ((tab_ask, render_ask), (tab_dash, render_dashboard)):
+    with tab:
+        try:
+            render()
+        except Exception as exc:
+            st.error(f"{type(exc).__name__}: {exc}")
