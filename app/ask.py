@@ -10,6 +10,7 @@ never drift from the tables dbt actually built.
 
 Run:  python app/ask.py "how did Dorsey vote on housing bills this year?"
 """
+import email.utils as eu
 import json
 import os
 import re
@@ -136,6 +137,22 @@ SHOW_NAMES = {
 }
 
 
+def pub_date_display(raw):
+    """'Fri, 18 Aug 2023 08:00:00 -0000' -> 'Aug 18, 2023'.
+
+    RFC-2822 is what the RSS feeds emit and what silver stores verbatim. Falls
+    back to the raw string rather than dropping a date it can't parse — a stray
+    format is worth showing badly, not hiding.
+    """
+    if not raw:
+        return ""
+    try:
+        d = eu.parsedate_to_datetime(raw)
+    except (TypeError, ValueError):
+        return raw
+    return f"{d:%b} {d.day}, {d.year}"
+
+
 def show_name(slug):
     """Display title for a show. An unknown slug degrades to a tidied version of
     itself, so adding a feed upstream shows something readable without a code
@@ -173,7 +190,8 @@ def search_podcasts(terms, k=3):
         if episode_id in seen:
             continue
         seen.add(episode_id)
-        out.append({"title": title, "show": show_name(show), "date": date, "url": url,
+        out.append({"title": title, "show": show_name(show),
+                    "date": pub_date_display(date), "url": url,
                     "at": f"{int(start)//60}:{int(start) % 60:02d}", "quote": snip})
         if len(out) == k:
             break
@@ -239,11 +257,11 @@ ANSWER_SYSTEM = """You answer questions about San Francisco legislation for a \
 general audience. You are given the question, the SQL that ran, its result rows, \
 and excerpts from SF news podcasts.
 
-Summarize what the data shows in a few sentences — cite the actual numbers. Then, \
+Answer the question directly in a few sentences — cite the actual numbers. Then, \
 if a podcast excerpt is genuinely on-topic, point the reader to it by show, \
-episode title, and timestamp. Never invent numbers that aren't in the rows.
+episode title, and timestamp. Never invent a number you were not given.
 
-When the rows carry legislation — a matter file number, a name, a type, an \
+When you are given legislation — a matter file number, a name, a type, an \
 outcome — name the actual bills. Lead with the shape of the record, then make it \
 concrete: what the notable matters were, how the board split on them, and what \
 became of them. Cite a matter as its name with the file number in parentheses, \
@@ -251,9 +269,17 @@ e.g. Grant Agreement - Permanent Supportive Housing (251263). A reader who \
 asked how their supervisor voted wants to know which bills those were, not only \
 how many times each person said Aye.
 
-`row_count` is the true number of rows the query returned; `rows` may be only \
-the first slice of them. Take totals from `row_count`, and treat any matter you \
-name as an example rather than implying you saw the whole list.
+Write for someone who never saw the SQL and does not know a database is \
+involved. Never mention the query, the rows, the results, the columns, the \
+data, the dataset, the records, or what was returned — answer about San \
+Francisco legislation, not about a lookup. "76 housing matters came up for a \
+vote this year", never "the query returned 76 rows". Do not open by restating \
+the question, and do not describe what you are about to do.
+
+`row_count` is the true total; `rows` may be only the first slice of them. Take \
+totals from `row_count`, and when you name specific matters, make it read as \
+selection rather than a complete list — "among them", "the most contested were" \
+— never "these are examples from the 76 rows".
 
 The transcript search always returns its best matches, so most of what you are \
 handed will be off-topic. Never stretch to make one fit. When nothing is \
@@ -262,10 +288,11 @@ not write that no episode was relevant, that the search found nothing, or any \
 other note about their absence: the reader did not ask about podcasts, and a \
 sentence explaining that there is nothing to say is worse than silence.
 
-Dates are a number too. A query written with CURRENT_DATE() returns rows with no \
-year in them, so the period covered is NOT visible in the results — read it off \
-`today` and the SQL, or describe the period in the question's own words ("this \
-year") rather than naming a year the rows don't state."""
+Dates are a number too. When the period was computed from CURRENT_DATE() no year \
+appears anywhere in what you were given, so read it off `today` and the SQL, or \
+describe the period in the question's own words ("this year") rather than naming \
+a year you cannot see. The SQL is there for you to read; it is not something to \
+describe to the reader."""
 
 
 def answer(question, sql, cols, rows, episodes):
@@ -336,6 +363,11 @@ def demo():
         except ValueError:
             pass
     assert "LIMIT" in guard_sql("select * from t where updated_at > '2026-01-01'")
+
+    assert pub_date_display("Fri, 18 Aug 2023 08:00:00 -0000") == "Aug 18, 2023"
+    assert pub_date_display("Mon, 05 May 2025 00:00:00 +0200") == "May 5, 2025"
+    assert pub_date_display("") == "" and pub_date_display(None) == ""
+    assert pub_date_display("not a date") == "not a date"   # show it, don't drop it
 
     assert show_name("fifth-and-mission") == "Fifth & Mission"
     assert show_name("nope-not-a-show") == "Nope Not A Show"   # unknown -> readable
