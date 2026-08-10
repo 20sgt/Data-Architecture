@@ -93,9 +93,11 @@ def guard_sql(sql, limit=ROW_LIMIT):
     return s
 
 
-def run_sql(conn, sql):
+def run_sql(conn, sql, params=None):
+    """Run a SELECT. `params` binds :named markers — use it for anything the
+    user picked, so a member name with an apostrophe is data, never syntax."""
     with conn.cursor() as cur:
-        cur.execute(sql)
+        cur.execute(sql, params)
         cols = [d[0] for d in cur.description]
         return cols, [list(r) for r in cur.fetchall()]
 
