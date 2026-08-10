@@ -312,6 +312,12 @@ Two tabs over the same gold tables:
   you choose, and a click-through to every vote that member cast: the matter, its type, the
   committee, and how it ended up.
 
+  It shows the **sitting Board** by default. Gold has no term dates, so "still serving" is
+  inferred: a member counts as current if they voted within 120 days of the newest vote in the
+  table. Measuring against the newest vote rather than today is what keeps this correct through
+  the Board's summer recess. Untick the box to include everyone who voted in the period —
+  eighteen people over the trailing two years, seven of whom have since left.
+
 Nothing loads `.env` automatically — `app/ask.py` reads `os.environ`, so the `source` line is
 required rather than decorative.
 

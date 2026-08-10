@@ -38,6 +38,11 @@ def _bounds(_conn):
     return dashboard.vote_date_bounds(_conn)
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _active(_conn):
+    return dashboard.active_members(_conn)
+
+
 @st.cache_data(ttl=3600, show_spinner="Counting votes…")
 def _overview(_conn, start, end):
     return dashboard.overview(_conn, start, end)
@@ -95,7 +100,12 @@ def render_dashboard():
         min_value=first,
         max_value=last,
     )
-    top_n = c2.number_input("Members shown", 1, 50, 11, help="The Board seats 11.")
+    current_only = c2.checkbox(
+        "Current members only", value=True,
+        help=f"A member counts as current if they cast a vote within "
+             f"{dashboard.ACTIVE_DAYS} days of the most recent vote on record. "
+             "Gold has no term dates, so service is inferred from voting.",
+    )
 
     # Mid-selection the widget returns just the start date. Wait for the second.
     if len(period) != 2:
@@ -108,13 +118,19 @@ def render_dashboard():
         st.info(f"No votes recorded between {start} and {end}.")
         return
 
-    tally = sorted(dashboard.totals(rows).items(), key=lambda kv: -kv[1])
+    only = _active(conn) if current_only else None
+    wide = dashboard.pivot(rows, only=only)
+    if not wide["member"]:
+        st.info("No current member voted in this period. "
+                "Untick 'Current members only' to see who did.")
+        return
+
+    tally = sorted(dashboard.totals(rows, only=only).items(), key=lambda kv: -kv[1])
     strip = [("Total", sum(n for _, n in tally))] + tally
     for col, (label, n) in zip(st.columns(len(strip)), strip):
         col.metric(label, f"{n:,}")
 
-    st.subheader("How each supervisor voted")
-    wide = dashboard.pivot(rows, top_n=top_n)
+    st.subheader(f"How each supervisor voted · {len(wide['member'])} members")
     st.bar_chart(
         wide,
         x="member",
