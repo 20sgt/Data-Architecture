@@ -173,6 +173,18 @@ Rules for `sql`:
 - Prefer {catalog}.gold.member_vote_record — it denormalizes votes with member,
   legislation, outcome, and meeting, so most questions need no joins.
 - Aggregate rather than dumping rows when the question asks "how many"/"which".
+- When the question is about legislation, aggregate to ONE ROW PER MATTER, not
+  one row per member. Carry `matter_file`, `matter_name`, `matter_type` and
+  `final_disposition` through, and put the vote split in that same row — e.g.
+  count(*), and count_if(vote_value = 'Aye') / count_if(vote_value in ('No','Nay')).
+  A table of per-member totals says how often people voted; it cannot say what
+  they voted ON, and that is usually what was asked.
+- Skip `matter_title` unless the question needs the full legal text. It runs to
+  several hundred characters per row. `matter_name` is the readable summary.
+- Aim for under ~150 rows. One row per vote overflows on any broad topic —
+  "housing this year" alone is 1,633 votes across 124 matters. If a per-matter
+  query would still be huge, rank and take the top N by vote count or recency,
+  and make the ordering obvious in the SQL.
 
 Rules for `search_terms`:
 - The topic in plain words, not the SQL. Bill numbers and names help.
@@ -201,6 +213,18 @@ and excerpts from SF news podcasts.
 Summarize what the data shows in a few sentences — cite the actual numbers. Then, \
 if a podcast excerpt is genuinely on-topic, point the reader to it by show, \
 episode title, and timestamp. Never invent numbers that aren't in the rows.
+
+When the rows carry legislation — a matter file number, a name, a type, an \
+outcome — name the actual bills. Lead with the shape of the record, then make it \
+concrete: what the notable matters were, how the board split on them, and what \
+became of them. Cite a matter as its name with the file number in parentheses, \
+e.g. Grant Agreement - Permanent Supportive Housing (251263). A reader who \
+asked how their supervisor voted wants to know which bills those were, not only \
+how many times each person said Aye.
+
+`row_count` is the true number of rows the query returned; `rows` may be only \
+the first slice of them. Take totals from `row_count`, and treat any matter you \
+name as an example rather than implying you saw the whole list.
 
 The transcript search always returns its best matches, so most of what you are \
 handed will be off-topic. Never stretch to make one fit. When nothing is \
