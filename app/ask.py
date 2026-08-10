@@ -114,6 +114,35 @@ def run_sql(conn, sql, params=None):
 
 # ---------------------------------------------------------------- podcasts
 
+# The RSS channel titles. Nothing upstream stores them: ingest.py's SHOW_FEEDS
+# is slug -> feed URL, and feedparser's channel title is parsed and thrown away,
+# so the slug is all that reaches the index. Capturing the real title properly
+# would mean a change to ingest.py, a silver rebuild and a full re-index — a lot
+# of moving parts for a display string.
+#
+# ponytail: nine shows, hardcoded. Derive them from the slug instead and five of
+# the nine come out wrong: "Fifth And Mission", "Giants Splash As Plus", and
+# nothing in "fixing-our-city" tells you about the "SFNext:" prefix.
+SHOW_NAMES = {
+    "fifth-and-mission": "Fifth & Mission",
+    "extra-spicy": "Extra Spicy",
+    "giants-splash-as-plus": "Giants Splash",
+    "datebook": "Datebook",
+    "the-doodler": "The Doodler",
+    "warriors-off-court": "Warriors Off Court",
+    "fixing-our-city": "SFNext: Fixing Our City",
+    "chronicled-kamala-harris": "Chronicled: Who Is Kamala Harris?",
+    "voice-of-san-francisco": "Voice of San Francisco",
+}
+
+
+def show_name(slug):
+    """Display title for a show. An unknown slug degrades to a tidied version of
+    itself, so adding a feed upstream shows something readable without a code
+    change here — just not the show's real punctuation."""
+    return SHOW_NAMES.get(slug) or (slug or "").replace("-", " ").title()
+
+
 def search_podcasts(terms, k=3):
     """Top-k episodes by BM25 over ~60s transcript chunks."""
     if not terms.strip() or not os.path.exists(PODCAST_DB):
@@ -144,7 +173,7 @@ def search_podcasts(terms, k=3):
         if episode_id in seen:
             continue
         seen.add(episode_id)
-        out.append({"title": title, "show": show, "date": date, "url": url,
+        out.append({"title": title, "show": show_name(show), "date": date, "url": url,
                     "at": f"{int(start)//60}:{int(start) % 60:02d}", "quote": snip})
         if len(out) == k:
             break
@@ -308,11 +337,16 @@ def demo():
             pass
     assert "LIMIT" in guard_sql("select * from t where updated_at > '2026-01-01'")
 
+    assert show_name("fifth-and-mission") == "Fifth & Mission"
+    assert show_name("nope-not-a-show") == "Nope Not A Show"   # unknown -> readable
+    assert show_name("") == "" and show_name(None) == ""       # never crash the row
+
     # Search must actually return hits — a broken query otherwise fails silently
     # through the OperationalError guard and just looks like "no relevant episode".
     if os.path.exists(PODCAST_DB):
         hits = search_podcasts("homeless OR homelessness OR encampment")
         assert hits, "expected transcript hits for a common SF topic"
+        assert all(h["show"] not in SHOW_NAMES for h in hits), "slug leaked to the UI"
         assert len({h["title"] for h in hits}) == len(hits), "duplicate episodes"
         assert search_podcasts('bad ) syntax "') == []       # malformed match
         assert search_podcasts("zzzznonexistentterm") == []  # no hits
