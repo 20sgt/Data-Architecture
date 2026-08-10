@@ -334,10 +334,25 @@ to build it (needs `gcloud` auth on the podcast bucket, ~200 MB local):
 python app/build_index.py
 ```
 
-Both modules self-check offline with no warehouse and no API key:
+Every module self-checks offline with no warehouse and no API key:
 
 ```bash
 python app/ask.py --demo && python app/dashboard.py --demo && python app/build_index.py --demo
+```
+
+### How accurate is it?
+
+**68% exact result-set match** against hand-written reference SQL, over 20
+questions. Every one of the misses returned the *correct answer* in a wider
+shape, so treat that as a floor rather than an error rate — and read
+[docs/nl_sql_eval.md](docs/nl_sql_eval.md) before quoting it, because the more
+interesting result is not the number. Asked something gold cannot answer
+("which district does Connie Chan represent?"), the app answers it anyway, from
+the model's own knowledge rather than the warehouse.
+
+```bash
+python app/eval.py --check-refs                  # validate the fixtures, no API calls
+python app/eval.py --run | tee docs/nl_sql_eval.md
 ```
 
 ---
