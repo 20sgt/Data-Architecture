@@ -112,6 +112,49 @@ def gold_schema(conn, refresh=False):
 
 # ------------------------------------------------------------------- guard
 
+def _strip_comments(sql):
+    """One pass over the SQL, tracking quoted spans. Returns (clean, masked):
+    clean is the SQL with comments removed and literals intact — what runs;
+    masked is clean with literal *contents* blanked — what gets inspected, so
+    a semicolon or the word 'update' inside a matter name is data, not syntax.
+    """
+    clean, masked = [], []
+    i, n = 0, len(sql)
+    while i < n:
+        c = sql[i]
+        if c in ("'", '"', "`"):
+            clean.append(c)
+            masked.append(c)
+            i += 1
+            while i < n:
+                if sql[i] == c:
+                    if sql[i + 1:i + 2] == c:        # doubled-quote escape
+                        clean.append(c * 2)
+                        i += 2
+                        continue
+                    clean.append(c)
+                    masked.append(c)
+                    i += 1
+                    break
+                if sql[i] == "\\":                   # backslash escape
+                    clean.append(sql[i:i + 2])
+                    i += 2
+                    continue
+                clean.append(sql[i])
+                i += 1
+        elif sql[i:i + 2] == "--":
+            while i < n and sql[i] != "\n":
+                i += 1
+        elif sql[i:i + 2] == "/*":
+            j = sql.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        else:
+            clean.append(c)
+            masked.append(c)
+            i += 1
+    return "".join(clean), "".join(masked)
+
+
 def guard_sql(sql, limit=ROW_LIMIT):
     """Read-only check + row cap. This is the trust boundary for model output.
 
@@ -119,19 +162,23 @@ def guard_sql(sql, limit=ROW_LIMIT):
     than sanitized, because a rewrite that "fixes" a mutating statement is a
     much easier thing to get subtly wrong than a flat rejection.
     """
-    s = sql.strip().rstrip(";").strip()
+    s, masked = _strip_comments(sql)
+    # The tail after the last literal is identical in both, so a trailing
+    # statement terminator strips from each the same way.
+    s = s.strip().rstrip(";").rstrip()
+    masked = masked.strip().rstrip(";").rstrip()
     if not s:
         raise ValueError("empty SQL")
-    if ";" in s:
+    if ";" in masked:
         raise ValueError("refusing multiple statements")
-    if not re.match(r"^\s*(select|with)\b", s, re.I):
+    if not re.match(r"^(select|with)\b", masked, re.I):
         raise ValueError(f"refusing non-SELECT statement: {s[:60]!r}")
     # Word-boundary match so a column named e.g. `updated_at` isn't a false hit.
     banned = r"\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|copy)\b"
-    hit = re.search(banned, s, re.I)
+    hit = re.search(banned, masked, re.I)
     if hit:
         raise ValueError(f"refusing statement containing {hit.group(0).upper()}")
-    if not re.search(r"\blimit\s+\d+\s*$", s, re.I):
+    if not re.search(r"\blimit\s+\d+\s*$", masked, re.I):
         s += f"\nLIMIT {limit}"
     return s
 
@@ -395,6 +442,24 @@ def demo():
         except ValueError:
             pass
     assert "LIMIT" in guard_sql("select * from t where updated_at > '2026-01-01'")
+
+    # The eval's two false positives: a semicolon inside a string literal, and
+    # SQL that opens with an explanatory comment. Both are legitimate SELECTs.
+    assert "Ord; No. 123" in guard_sql("select * from t where name = 'Ord; No. 123'")
+    assert guard_sql("-- party is not in gold\nselect 1").startswith("select")
+    # Same class: a banned word inside a quoted matter name is data, not DDL.
+    assert "Update" in guard_sql("select * from t where name = 'Update to the Code'")
+    # The masking must not weaken the guard itself.
+    for still_bad in ["select 1; drop table t  -- trailing comment",
+                      "/* select */ drop table t",
+                      "select '--' ; drop table t"]:
+        try:
+            guard_sql(still_bad)
+            raise AssertionError(f"guard let through: {still_bad}")
+        except ValueError:
+            pass
+    # '--' inside a literal is data, not a comment delimiter.
+    assert guard_sql("select '-- not a comment'").startswith("select '--")
 
     assert pub_date_display("Fri, 18 Aug 2023 08:00:00 -0000") == "Aug 18, 2023"
     assert pub_date_display("Mon, 05 May 2025 00:00:00 +0200") == "May 5, 2025"
