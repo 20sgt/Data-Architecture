@@ -29,7 +29,7 @@ dashboard.
 The end product lets a user pick a representative, choose a time period, and see:
 
 - which legislation they voted on,
-- how they voted (Aye / No / Absent / Excused / Recused),
+- how they voted (Aye / No / Absent / Excused / Abstain),
 - details about that legislation, and
 - what ultimately happened to it (passed, filed, killed, still in progress).
 
@@ -92,21 +92,23 @@ Ordered by where data flows, not alphabetically.
 | `scrape/` | The scrapers. `legistar_scrape.py` (legislation), `legistar_meetings.py` (meetings), `fetch.py` (rate-limited HTTP), `history_detail.py` (roll-call parser), `tests/` (offline golden tests, run in CI) |
 | `Dockerfile`, `entrypoint.sh` | The scraper as a container. `entrypoint.sh` is the weekly order of operations: meetings, then matters |
 | `terraform/` | GCP infrastructure — the bronze bucket, plus the weekly Cloud Run Job and its Scheduler trigger |
-| `scripts/backfill.sh` | One-shot 2000→2026 deep-history scrape (resumable) |
+| `scripts/` | `backfill.sh` — one-shot 2000→2026 deep-history scrape (resumable). `bench_serving.py` — the serving-path benchmark harness |
 | `databricks/` | The one notebook still in the pipeline: GCS JSON → bronze Delta via Auto Loader |
 | `dbt/` | Everything after bronze. `models/staging/` flattens, `models/intermediate/` dedups latest-wins, `models/gold/` builds the star; `tests/` and `macros/` alongside |
 | `databricks.yml` | Asset Bundle — the weekly transform Job, as code |
-| `app/` | The serving layer. `ask.py` (question → SQL → answer), `dashboard.py` (the charted voting record), `streamlit_app.py` (both, as two tabs), `build_index.py` (podcast transcript FTS index) |
+| `app/` | The serving layer. `ask.py` (question → SQL → answer), `dashboard.py` (the charted voting record), `streamlit_app.py` (both, as two tabs), `eval.py` (the text-to-SQL accuracy eval), `build_index.py` (podcast transcript FTS index) |
 | `sfchronicle_podcast_ingest/` | Separate slice: podcast audio → Whisper transcripts → enrichment. Feeds `app/build_index.py` |
 | `erd/schema.dbml` | Star-schema definition |
 | `sample/` | Four bronze JSON files documenting the shape silver consumes |
-| `docs/` | Design rationale and Mermaid diagrams |
+| `docs/` | Design rationale, Mermaid diagrams, and measured results (text-to-SQL accuracy, serving-path benchmark) |
 
 See the design docs for the full reasoning behind the architecture:
 
 - [Pipeline design](docs/pipeline_design.md)
 - [Architecture diagrams](docs/architecture_diagrams.md)
 - [Star-schema definition](erd/schema.dbml)
+- [Text-to-SQL accuracy](docs/nl_sql_eval.md)
+- [Serving-path benchmark](docs/bench_serving.md)
 
 ---
 
@@ -139,8 +141,8 @@ they're identical on every run and safe for incremental MERGE.
 
 `meeting_sk` on the fact tables is **nullable** — it's populated only when an action/vote resolves
 to a known meeting via `history_id` (procedural actions like clerk referrals never occur in a
-meeting). This is not a rare edge case: **58%** of `fact_matter_action` rows (103,669 of 179,247)
-and **3.7%** of `fact_vote` rows (21,828 of 587,165) have no meeting. Join with `LEFT JOIN` —
+meeting). This is not a rare edge case: **58%** of `fact_matter_action` rows (103,939 of 179,566)
+and **3.8%** of `fact_vote` rows (22,252 of 587,758) have no meeting. Join with `LEFT JOIN` —
 filtering on `meeting_sk` silently drops most of the action history.
 
 ---
@@ -370,7 +372,11 @@ python app/eval.py --run | tee docs/nl_sql_eval.md
 
 - **No alerting on the scrape.** The Databricks Job emails on failure; the Cloud Run Job does not.
   A run that fails to start logs at `ERROR` and tells nobody — which is exactly how the
-  2026-07-29 miss (41 matters, 5 meetings) sat unnoticed for ten days. See `TODO.md`.
+  2026-07-29 miss (41 matters, 3 meetings — since backfilled) sat unnoticed for ten days. See `TODO.md`.
+- **`member_vote_record` is still a view.** The [serving-path benchmark](docs/bench_serving.md)
+  measured that materializing it as a table halves dashboard latency (767→341 ms on the overview
+  query, medians of 7 runs) and that liquid clustering adds nothing at this data size. The dbt
+  model change is pending.
 - **`action_type_code` is not a code.** Despite the name and the ERD's declared vocabulary, the
   column holds raw uppercased Legistar labels — one of them is 82 characters. The normalization
   layer (`dim_action_type`) is designed but unbuilt. Treat it as free text.

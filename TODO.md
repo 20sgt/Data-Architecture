@@ -124,7 +124,7 @@ agenda-feed coverage is the pilot's approximation.
 
 Today `dim_person` is **identity-only** — `person_id` + `full_name`, captured as a
 byproduct of roll-call votes (`scrape/history_detail.py`) and sponsor names
-(`databricks/gold_merge_databricks.py`). The biographical columns the schema
+(`dbt/models/gold/dim_person.sql`, the `sponsor_only` population). The biographical columns the schema
 declares (`district`, `party`, `gender`, `birth_date`, `supervisor_term_start/end`)
 are unpopulated, `dim_person` is a flat distinct list (no SCD2 versioning), and
 `fact_committee_membership` is empty.
