@@ -65,6 +65,9 @@ absent from it. dbt persists those comments faithfully; they simply drifted from
 the data. Reading them into the prompt would have taught the model a vocabulary
 that does not exist. The values are the values.
 
+*(The comments were corrected on 2026-08-12. The sampling approach stands —
+the data, not the documentation, is the authority on what a column contains.)*
+
 That is the concrete answer to *how did schema design enable or constrain the
 agent*: the star schema's structure was never the obstacle, its **undocumented
 vocabularies** were, and the fix was to stop asking the model to guess them.
@@ -117,6 +120,10 @@ legitimate read-only SQL:
 Neither weakens the guard against actual mutation; both make it reject correct
 queries. The fix is to strip comments and to treat `;` as a separator only
 outside string literals.
+
+*Fixed since (2026-08-12): `guard_sql()` now strips comments and masks string-literal
+contents before checking, so quoted data can no longer trip the semicolon or keyword
+rules. The refusal cases above still refuse.*
 
 ## How the grading works
 

@@ -69,6 +69,28 @@ everyone to ignore it. If it gets built, the condition has to be *zero files
 **and** the calendar had meetings in the window* — i.e. the scraper knows the
 difference between "nothing happened" and "I failed to see what happened."
 
+### Backfill status — verified 2026-08-12: done, with one upstream wait
+
+The 7/29 window has been backfilled: gold has all three gap meetings (Rules and
+Land Use 7/27, Board 7/28), the 41 matters created 7/22..7/28, and off-agenda
+actions through 8/7 (Mayor approvals during recess).
+
+**Known hole, not ours: the Board's 7/28 roll calls.** fact_vote has zero votes
+dated 7/28 against 253 for the 7/21 Board meeting. Checked matter 260552 on the
+live site: the 7/28 history row is empty there too — no action name, no result,
+no Action-details link — while its 7/16 committee vote and 7/30 Mayor approval
+are fully populated. Legistar publishes roll calls when the clerk finalizes
+minutes at the *next* Board meeting, which recess pushes to September. The
+scraper captured exactly what exists.
+
+**The catch when they publish:** those matters won't be re-scraped. They fall in
+no future File-Created window, won't reappear on a September agenda, and most
+are already terminal (`passed`), so the open-set re-scrape planned below
+(`lifecycle = 'in_works'`) skips them too. Gold already knows the re-scrape
+list — actions with an empty action name and no `history_id`: 93 matters on
+2026-07-28, against a ~15/week baseline of rows that stay detail-less forever.
+One targeted pass over that list after the September Board meeting closes it.
+
 ## Open-matter re-scrape (incremental status refresh)
 
 The pilot relies on the weekly File-Created window plus the
@@ -102,7 +124,7 @@ agenda-feed coverage is the pilot's approximation.
 
 Today `dim_person` is **identity-only** — `person_id` + `full_name`, captured as a
 byproduct of roll-call votes (`scrape/history_detail.py`) and sponsor names
-(`databricks/gold_merge_databricks.py`). The biographical columns the schema
+(`dbt/models/gold/dim_person.sql`, the `sponsor_only` population). The biographical columns the schema
 declares (`district`, `party`, `gender`, `birth_date`, `supervisor_term_start/end`)
 are unpopulated, `dim_person` is a flat distinct list (no SCD2 versioning), and
 `fact_committee_membership` is empty.
