@@ -334,10 +334,34 @@ to build it (needs `gcloud` auth on the podcast bucket, ~200 MB local):
 python app/build_index.py
 ```
 
-Both modules self-check offline with no warehouse and no API key:
+Every module self-checks offline with no warehouse and no API key:
 
 ```bash
 python app/ask.py --demo && python app/dashboard.py --demo && python app/build_index.py --demo
+```
+
+### How accurate is it?
+
+**22/22 exact result-set match** against hand-written reference SQL, plus 2/2 on
+mutation guardrails. Read [docs/nl_sql_eval.md](docs/nl_sql_eval.md) before
+quoting that, because the number on its own is misleading in both directions.
+
+Measuring it changed the system once: the planner used to reconstruct
+`lifecycle` from `LIKE '%pass%'` patterns and miss by 408, because it was given
+column names and types but never the values inside them. `gold_schema()` now
+samples the 13 controlled vocabularies in gold into the prompt — from the data,
+not from the Unity Catalog comments, which list a `Recused` that does not exist
+and omit four values that do. That one change took the failing question from 0/4
+to 4/4.
+
+The unfixed failure is more interesting than the score. Asked something gold
+cannot answer — "which district does Connie Chan represent?" — the app answers
+anyway, from the model's own knowledge, in a paragraph where every other fact is
+warehouse-derived.
+
+```bash
+python app/eval.py --check-refs                  # validate the fixtures, no API calls
+python app/eval.py --run | tee docs/nl_sql_eval.md
 ```
 
 ---
