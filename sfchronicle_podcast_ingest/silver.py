@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""
-Build a free, queryable silver layer from enrichment JSON.
-
-Writes:
-  1) Local SQLite  — data/podcast_silver.sqlite  (SQL queries, $0)
-  2) GCS JSONL     — podcasts/silver/*.jsonl     (same tables in the bucket)
-
-No BigQuery / paid analytics APIs. Safe for local + Cloud Run weekly jobs.
-
-Usage:
-  ./.venv/bin/python3 silver.py
-  ./.venv/bin/python3 silver.py --local-only
-  ./.venv/bin/python3 silver.py --gcs-only
-  ./.venv/bin/python3 silver.py --show fixing-our-city
-"""
+"""Flatten enrichment JSON into local SQLite and/or GCS podcasts/silver/*.jsonl."""
 
 from __future__ import annotations
 
@@ -33,10 +19,7 @@ from ingest import get_storage_client, load_config
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 ENRICHMENT_PREFIX = os.getenv("ENRICHMENT_PREFIX", "podcasts/enrichment")

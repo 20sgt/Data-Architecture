@@ -1,28 +1,16 @@
 #!/usr/bin/env bash
+# Cloud weekly: ingest → budget-capped Whisper → enrich → silver (GCS).
 set -euo pipefail
-
-# Cloud weekly job (no Speech-to-Text / no paid LLM):
-#   1) ingest new episodes into GCS
-#   2) enrich any Whisper transcripts that already exist
-#   3) rebuild silver JSONL tables in GCS
-#
-# Transcription stays local (Whisper). If no new transcripts exist yet,
-# enrich/silver simply skip or rebuild from what is already there.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-echo "===== Cloud podcast pipeline started: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
-echo "Using Python: $(command -v python)"
+echo "===== Cloud pipeline $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
+echo "WHISPER_MODEL=${WHISPER_MODEL:-tiny} MAX_EPISODES=${WHISPER_MAX_EPISODES:-5}"
 
-echo "--- ingest ---"
 python ingest.py
-
-echo "--- enrich (only transcripts already in transcripts_whisper/) ---"
+python transcribe.py
 python enrich.py
-
-echo "--- silver (GCS JSONL only; SQLite is local) ---"
 python silver.py --gcs-only
 
-echo "Skipping cloud Whisper (run locally via ./run_transcribe.sh — \$0 STT)."
-echo "===== Cloud podcast pipeline finished: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="
+echo "===== Done $(date -u +"%Y-%m-%dT%H:%M:%SZ") ====="

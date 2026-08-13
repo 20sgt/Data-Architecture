@@ -85,6 +85,48 @@ in.
 
 ## Repository structure
 
+```
+.
+├── scrape/                     # Python scrapers (Playwright + requests/bs4)
+│   ├── legistar_scrape.py      #   legislation slice
+│   ├── legistar_meetings.py    #   meeting slice
+│   ├── fetch.py                #   rate-limited HTTP + retry
+│   ├── history_detail.py       #   roll-call vote parser
+│   └── tests/                  #   offline golden tests (run in CI)
+├── databricks/                 # the one notebook the pipeline still uses
+│   └── bronze_autoloader_databricks.py    # GCS JSON → bronze Delta (Auto Loader)
+├── dbt/                        # silver + gold transforms (owns everything after bronze)
+│   ├── models/staging/         #   8 stg_* — flatten nested bronze
+│   ├── models/intermediate/    #   8 int_* — latest-wins dedup
+│   ├── models/gold/            #   star schema + schema.yml (docs & tests)
+│   ├── tests/                  #   singular data tests
+│   └── macros/                 #   surrogate keys, dev/prod schema routing
+├── databricks.yml              # Asset Bundle: the weekly Job, as code
+├── scripts/
+│   └── backfill.sh             # one-shot 2000→2026 deep-history scrape (resumable)
+├── terraform/                  # GCP IaC: buckets + weekly scrape (Cloud Run Job + Scheduler)
+├── Dockerfile                  # scraper image for the weekly Cloud Run Job
+├── entrypoint.sh               # container entrypoint (weekly meetings → matters window)
+├── docs/
+│   ├── pipeline_design.md      # design rationale (ELT, incremental load, modeling decisions)
+│   └── architecture_diagrams.md# data-flow + ER diagrams (Mermaid)
+├── erd/
+│   └── schema.dbml             # star-schema definition
+├── frontend/
+│   ├── Design System.html      # dashboard design system / mockup
+│   └── build_data.py           # demo-dashboard data builder
+├── sample/                     # small sample of scraped JSON for local testing
+│   ├── matters/ingest_date=.../
+│   └── meetings/ingest_date=.../
+├── sfchronicle_podcast_ingest/ # podcast bronze→silver (Whisper, enrich, RAG)
+│   ├── README.md
+│   ├── docs/                   # M1 footprint, M2 deep-dive plan
+│   ├── rag/                    # free keyword retrieve → top-3 chunks
+│   └── ingest / transcribe / enrich / silver / query_silver
+├── requirements.txt
+├── TODO.md
+└── README.md
+```
 Ordered by where data flows, not alphabetically.
 
 | Path | What lives there |
@@ -101,6 +143,17 @@ Ordered by where data flows, not alphabetically.
 | `erd/schema.dbml` | Star-schema definition |
 | `sample/` | Four bronze JSON files documenting the shape silver consumes |
 | `docs/` | Design rationale, Mermaid diagrams, and measured results (text-to-SQL accuracy, serving-path benchmark) |
+
+### Podcast pipeline (second source)
+
+RSS → GCS audio → Whisper transcripts → rule enrichment → SQLite + GCS JSONL.
+No Google Speech-to-Text. Weekly Cloud Run Sunday 03:00 PT (budget-capped Whisper).
+Free keyword RAG: natural language → top 3 quote/title/URL chunks (or `no_recent_data`).
+
+- [Package README](sfchronicle_podcast_ingest/README.md)
+- [Data footprint (M1)](sfchronicle_podcast_ingest/docs/DATA_FOOTPRINT.md)
+- [Deep-dive plan (M2)](sfchronicle_podcast_ingest/docs/DEEP_DIVE_PLAN.md)
+- [RAG retrieve](sfchronicle_podcast_ingest/rag/README.md)
 
 See the design docs for the full reasoning behind the architecture:
 
@@ -399,6 +452,7 @@ python app/eval.py --run | tee docs/nl_sql_eval.md
 
 - **Repository:** https://github.com/20sgt/Data-Architecture
 - **Data source (SF Legistar):** https://sfgov.legistar.com
+- **Podcast pipeline:** [sfchronicle_podcast_ingest/README.md](sfchronicle_podcast_ingest/README.md)
 - **Pipeline design:** [docs/pipeline_design.md](docs/pipeline_design.md)
 - **Architecture diagrams:** [docs/architecture_diagrams.md](docs/architecture_diagrams.md)
 - **ERD:** https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships

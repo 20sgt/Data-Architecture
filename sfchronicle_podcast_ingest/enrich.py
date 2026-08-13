@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""
-Enrich podcast transcripts into queryable civic entities.
-
-Extracts (locally, no paid LLM/API):
-  - bill / proposition / ordinance references
-  - people / officials mentioned
-  - civic topics
-  - stance/sentiment cues toward bills or topics
-  - short quote windows for citations
-
-Usage:
-  ./.venv/bin/python3 enrich.py
-  ./.venv/bin/python3 enrich.py --limit 10
-  ./.venv/bin/python3 enrich.py --force
-"""
+"""Rule-based enrichment: bills, people, topics, stances, quote windows from transcripts."""
 
 from __future__ import annotations
 
@@ -23,7 +9,6 @@ import logging
 import os
 import re
 import sys
-from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -34,19 +19,14 @@ from ingest import get_storage_client, load_config
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 TRANSCRIPT_PREFIX = os.getenv("TRANSCRIPT_PREFIX", "podcasts/transcripts_whisper")
-# Legacy mixed STT/Whisper transcripts (undisturbed): podcasts/transcripts
 METADATA_PREFIX = "podcasts/metadata"
 ENRICHMENT_PREFIX = "podcasts/enrichment"
 MIN_USABLE_CHARS = int(os.getenv("ENRICH_MIN_CHARS", "800"))
 
-# Patterns for California / SF legislative and ballot references.
 BILL_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("state_bill", re.compile(r"\b(?:Assembly|Senate)\s+Bill\s+(\d+[A-Z]?)\b", re.I)),
     ("state_bill_short", re.compile(r"\b(A\.?B\.?|S\.?B\.?)\s*(\d+[A-Z]?)\b", re.I)),
@@ -111,7 +91,6 @@ TOPIC_LEXICON: dict[str, list[str]] = {
     ],
 }
 
-# Fallback people lexicon if data/representatives.json is missing.
 _FALLBACK_PEOPLE: dict[str, str] = {
     "daniel lurie": "mayor",
     "london breed": "former_mayor",
@@ -135,13 +114,11 @@ _FALLBACK_PEOPLE: dict[str, str] = {
     "laura wenus": "host",
 }
 
-# name_lower -> role; also PERSON_NORMALIZED: name_lower -> stable id for joins
 KNOWN_PEOPLE: dict[str, str] = {}
 PERSON_NORMALIZED: dict[str, str] = {}
 
 
 def load_representatives(path: str | None = None) -> None:
-    """Load people/representative lexicon from JSON (no paid APIs)."""
     KNOWN_PEOPLE.clear()
     PERSON_NORMALIZED.clear()
     KNOWN_PEOPLE.update(_FALLBACK_PEOPLE)

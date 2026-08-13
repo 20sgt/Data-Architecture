@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example SQL queries against the local silver SQLite DB (free).
-
-Usage:
-  ./.venv/bin/python3 query_silver.py
-  ./.venv/bin/python3 query_silver.py --bill prop_c
-  ./.venv/bin/python3 query_silver.py --topic homelessness
-  ./.venv/bin/python3 query_silver.py --person scott_wiener
-"""
+"""Query local silver SQLite: --bill / --topic / --person."""
 
 from __future__ import annotations
 

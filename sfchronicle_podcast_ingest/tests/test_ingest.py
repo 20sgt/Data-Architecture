@@ -64,7 +64,6 @@ class FakeResponse:
 
 
 def test_get_audio_url_prefers_audio_enclosure():
-    """Purpose: verify the ingest step extracts the real MP3 URL from RSS data."""
     entry = {
         "enclosures": [
             {"type": "image/jpeg", "href": "https://example.com/art.jpg"},
@@ -76,7 +75,6 @@ def test_get_audio_url_prefers_audio_enclosure():
 
 
 def test_download_episode_uploads_audio_and_metadata(monkeypatch):
-    """Purpose: verify a new episode saves both MP3 bytes and metadata to GCS paths."""
     bucket = FakeBucket()
     entry = {
         "id": "episode-guid-1",
@@ -110,7 +108,6 @@ def test_download_episode_uploads_audio_and_metadata(monkeypatch):
 
 
 def test_ingest_all_skips_episode_already_in_manifest(monkeypatch):
-    """Purpose: verify reruns do not redownload podcasts already tracked in the manifest."""
     bucket = FakeBucket()
     bucket.blobs[ingest.MANIFEST_PATH] = FakeBlob(
         ingest.MANIFEST_PATH,
