@@ -78,6 +78,9 @@ def render_ask():
             )
             st.caption(f"…{e['quote']}…")
 
+    if not out["sql"]:        # off-topic: no query ran, nothing to expand
+        return
+
     with st.expander(f"Query and results ({len(out['rows'])} rows)"):
         st.code(out["sql"], language="sql")
         # rows come back as lists; zip them back to their column names
