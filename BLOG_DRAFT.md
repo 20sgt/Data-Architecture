@@ -1,6 +1,6 @@
 # Making San Francisco's votes queryable
 
-### A legislation lakehouse, a podcast slice, and a text-to-SQL agent on gold
+### A legislation lakehouse, a podcast slice, and a text-to-SQL agent
 
 **Team:** Corn Off the Cobb
 **Repo:** [github.com/20sgt/Data-Architecture](https://github.com/20sgt/Data-Architecture)
