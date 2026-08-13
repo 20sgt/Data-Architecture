@@ -74,7 +74,7 @@ Early gold lived in PySpark notebooks. Anyone could rebuild gold there, skipping
 
 **Gained:** The dashboard and the Ask tab answer most "how did X vote?" questions with a single query.
 
-**Gave up:** Every query re-runs a four-way join. This results in about 2× on every dashboard query (767 → 341 ms; see section 5 for more details). Questions about **sponsors, attachments, or district** cannot be answered here. `dim_person` holds names only, and district and party are not on the pages we scrape.
+**Gave up:** Every query re-runs a four-way join, about twice as slow as the same rows saved as a real table (767 vs. 341 ms, measured in section 5; a change we have not shipped yet). Questions about **sponsors, attachments, or district** cannot be answered here. `dim_person` holds names only, and district and party are not on the pages we scrape.
 
 ### The podcast pipeline
 
