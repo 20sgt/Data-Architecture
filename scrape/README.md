@@ -29,7 +29,7 @@ playwright install chromium        # once — needed for enumeration
 
 **Order matters: meetings first** (the legislation slice reads their agenda feed via `--agenda-bronze`).
 Output lands in `raw/<entity>/ingest_date=YYYY-MM-DD/` (gitignored; partition = scrape date). The JSON
-shape is the bronze contract documented in `[../sample/README.md](../sample/README.md)`.
+shape is the bronze contract documented in [../sample/README.md](../sample/README.md).
 
 ```bash
 # Backfill a date range (e.g. YTD 2026). --year pages the full calendar; the search auto-bisects any

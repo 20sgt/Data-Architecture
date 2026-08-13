@@ -211,7 +211,9 @@ models:
       - name: vote_date
         description: Date the vote was cast.
       - name: vote_value
-        description: How the member voted — Aye, No, Absent, Excused, Recused, etc.
+        description: >-
+          How the member voted. Observed vocabulary: Aye, No, Absent, Excused,
+          Abstain, Non-Voting, Present, Vacant. (Recused never occurs in the data.)
       - name: history_id
         description: Source identifier linking this vote to its action and meeting.
 
@@ -332,7 +334,9 @@ models:
       - name: vote_date
         description: Date the vote was cast.
       - name: vote_value
-        description: Aye, No, Absent, Excused, Recused, etc.
+        description: >-
+          Aye, No, Absent, Excused, Abstain, Non-Voting, Present, or Vacant.
+          (Recused never occurs in the data.)
       - name: person_id
         description: Legistar person ID. NULL for sponsor-only people.
       - name: member_name

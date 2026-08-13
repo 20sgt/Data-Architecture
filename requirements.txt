@@ -5,8 +5,12 @@ lxml>=5.0
 pypdf>=4.0
 playwright==1.61.0      # postback enumeration only; PINNED to the Dockerfile base image tag (see its INVARIANT) — a loose bound let pip drift past the base's bundled browser. Locally: run `playwright install chromium`
 
-# Warehouse (local dev)
-duckdb>=1.0
+# NL query app (app/) — natural-language question -> SQL on gold
+anthropic>=0.120
+databricks-sql-connector>=4.4
+pydantic>=2.13
+streamlit>=1.61
+# The transcript index uses sqlite3 + FTS5 from the stdlib — no extra dependency.
 
 # Tests (offline parser golden tests — no browser needed)
 pytest>=8.0

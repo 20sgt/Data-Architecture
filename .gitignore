@@ -60,3 +60,17 @@ sfchronicle_podcast_ingest/.pytest_cache/
 **/*service-account*.json
 **/*credentials*.json
 **/*-bdc8978dd3c6.json
+# retired DuckDB-era artifacts (superseded by the Databricks lakehouse)
+warehouse/
+
+# podcast pipeline local artifacts
+# Scoped to this directory on purpose. A repo-wide `*.json` used to live here and
+# silently swallowed every new JSON anywhere in the tree — `git add` appeared to
+# succeed and staged nothing.
+sfchronicle_podcast_ingest/**/*.json
+!sfchronicle_podcast_ingest/data/representatives.json
+sfchronicle_podcast_ingest/data/*.sqlite
+sfchronicle_podcast_ingest/data/*.sqlite-*
+
+# NL query app: downloaded transcripts, FTS index, schema cache
+app/data/

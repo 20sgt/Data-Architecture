@@ -24,19 +24,20 @@ flowchart TD
         STG_V["stg_votes\nmatter_id · action_seq\nperson_name · vote_value"]
         STG_AT["stg_attachments\nmatter_id · attachment_seq\ndocument_id · url"]
         STG_SP["stg_sponsors\nmatter_id · sponsor_pos\nsponsor_name"]
+        STG_MTG["meeting slice:\nstg_meetings · stg_agenda_items\nstg_meeting_documents"]
     end
 
-    subgraph GOLD ["⭐  GOLD — Star schema (what the dashboard queries)"]
+    subgraph GOLD ["⭐  GOLD — Star schema (what the serving layer queries)"]
         direction TB
 
         subgraph DIMS ["Dimensions"]
             direction LR
             DIM_C["dim_committee\nseeded from bodies.json\n(stable reference data)"]
-            DIM_P["dim_person\nSCD type 2\nseeded from persons.json"]
-            DIM_M["dim_matter\nSCD type 2\n+ status / lifecycle fields"]
+            DIM_P["dim_person\nidentity-only: person_id + name\n(voters + sponsor-only)"]
+            DIM_M["dim_matter\naccumulating snapshot,\nupdated in place\n+ status / lifecycle fields"]
             DIM_D["dim_document"]
-            DIM_S["dim_subject\n⚠️ data source TBD"]
-            DIM_MTG["dim_meeting\n👥 teammate's slice"]
+            DIM_S["dim_subject\n⚠️ not built — no data source"]
+            DIM_MTG["dim_meeting\nfrom the meeting slice"]
         end
 
         subgraph FACTS ["Facts"]
@@ -49,37 +50,46 @@ flowchart TD
             direction LR
             BR_SP["bridge_matter_sponsor"]
             BR_D["bridge_matter_document"]
-            BR_S["bridge_matter_subject"]
+            BR_S["bridge_matter_subject\n⚠️ not built — blocked on dim_subject"]
+        end
+
+        subgraph SERVING ["Serving view"]
+            MVR["member_vote_record\none row per vote, denormalized\n(member · matter · outcome · meeting)"]
         end
     end
 
-    DASH["📊 Streamlit dashboard\nvoting records · keyword search · weekly diff"]
+    DASH["🔎 Streamlit app, two tabs\nAsk: question → SQL → answer\n+ podcast transcript search\nVoting record: the charts"]
 
-    SRC -->|"weekly scrape:\nnew matters + re-scrape open matters"| SCRAPER
+    SRC -->|"weekly scrape:\nnew matters + everything\non that week's agendas"| SCRAPER
     SCRAPER --> RAW
 
-    RAW -->|"loader\n(next increment)"| STG_M & STG_A & STG_V & STG_AT & STG_SP
+    RAW -->|"Auto Loader → bronze,\nthen dbt staging models"| STG_M & STG_A & STG_V & STG_AT & STG_SP & STG_MTG
 
-    STG_M -->|"dedupe latest,\nSCD type 2 upsert"| DIM_M
+    STG_M -->|"dedupe latest,\nMERGE upsert"| DIM_M
     STG_A -->|"resolve body name\n→ committee_sk"| FACT_A
     STG_V -->|"resolve person_name\n→ person_sk"| FACT_V
     STG_AT --> DIM_D
     STG_SP -->|"pos 0=primary\npos 1+=co"| BR_SP
 
-    GOLD --> DASH
+    FACT_V --> MVR
+    MVR --> DASH
 ```
 
 ---
 
 ## 2. Star schema — entity-relationship diagram
 
-Tables with a **†** are owned by the legislation slice (Lynn).
-Tables with a **‡** are owned by the meeting slice (teammate).
-`meeting_sk` on both fact tables is **nullable** — resolved when meeting data is present.
+> **Read this as the design-time ERD, not the built schema.** What is actually built —
+> table by table, with `BUILT` / `NOT BUILT` / `NO SOURCE` markers — is
+> [`erd/schema.dbml`](../erd/schema.dbml), the single source of truth, rendered at
+> [dbdocs](https://dbdocs.io/jacksoncdawson/Group-Project-ERD?view=relationships).
+> Notable deltas as built: `dim_person` is identity-only (no SCD2, no district),
+> `dim_matter` is an accumulating snapshot updated in place (no SCD2), and
+> `dim_subject` / `bridge_matter_subject` have no dbt models.
 
-> `dim_matter` and `dim_person` use **SCD type 2**: when something changes (e.g. a bill's
-> status or a supervisor's district), the old row is closed (`effective_to`, `is_current=false`)
-> and a new row is inserted. Query current state with `WHERE is_current = true`.
+Tables with a **†** are owned by the legislation slice.
+Tables with a **‡** are owned by the meeting slice.
+`meeting_sk` on both fact tables is **nullable** — resolved when meeting data is present.
 
 ```mermaid
 erDiagram

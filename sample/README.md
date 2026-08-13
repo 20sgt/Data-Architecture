@@ -1,14 +1,10 @@
 # `sample/` — committed bronze sample
 
-A small, **git-tracked** slice of the bronze layer — one week of SF Legistar data — kept in the repo
-for two reasons:
+Four **git-tracked** bronze files, kept as a reference for the exact JSON shape silver consumes —
+readable without running a scrape.
 
-1. **Final verification** that the scrapers produce the agreed bronze contract end-to-end.
-2. **Quick reference for the silver layer** (Lynn): the exact JSON shape silver consumes, without
-   running a scrape.
-
-> This mirrors what the weekly job will write to GCS (`raw/` locally, which is **gitignored** — only
-> this curated `sample/` is committed). Window: **2026-06-15 … 2026-06-21**, scraped 2026-06-26.
+> This mirrors what the weekly job writes to GCS (`raw/` locally is **gitignored**). Window:
+> **2026-06-15 … 2026-06-21**, scraped 2026-06-26.
 
 ## Layout
 ```
@@ -18,6 +14,20 @@ sample/
 ```
 `ingest_date=` is the partition key (= scrape date). The window above is the date range of the
 meetings/matters themselves.
+
+Four files, chosen to span the contract rather than to be a complete week — the full 99-file scrape
+was 16k lines of git-tracked JSON proving the same shape 95 more times:
+
+| file | why it's here |
+|------|---------------|
+| `matters/260506.json` | the rich case — 7 actions, 31 roll-call votes, 12 attachments, a sponsor |
+| `matters/260707.json` | the empty case — no actions, no votes; proves the null branches |
+| `meetings/1423292.json` | Board of Supervisors, 50 agenda items, `minutes_status=Final Draft` |
+| `meetings/1422772.json` | a small committee meeting, `minutes_status=Final` |
+
+Nothing reads these — the parser golden tests run off captured HTML in `scrape/tests/fixtures/`.
+They are documentation you can `jq`. Regenerate a full week with the commands at the bottom if you
+ever need more.
 
 ## Bronze contract
 
