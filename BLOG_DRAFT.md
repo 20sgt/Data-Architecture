@@ -159,8 +159,6 @@ Public repo: [github.com/20sgt/Data-Architecture](https://github.com/20sgt/Data-
 
 ![Drill-down: every vote one supervisor cast, with the matter and its outcome](images/frontend-voting_record.png)
 
-By default the tab shows the **sitting Board** — anyone who voted within 120 days of the newest vote in gold — so summer recess does not empty the chart.
-
 ---
 
 ## 7. Reflection
