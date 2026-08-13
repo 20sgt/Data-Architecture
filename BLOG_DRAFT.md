@@ -74,7 +74,7 @@ Early gold lived in PySpark notebooks. Anyone could rebuild gold there, skipping
 
 **Gained:** The dashboard and the Ask tab answer most "how did X vote?" questions with a single query.
 
-**Gave up:** We measured the cost of that repeated join rather than guessing (§5). Questions about **sponsors, attachments, or district** cannot be answered here. `dim_person` holds names only, and district and party are not on the pages we scrape.
+**Gave up:** Every query re-runs a four-way join. This results in about 2× on every dashboard query (767 → 341 ms; see section 5 for more details). Questions about **sponsors, attachments, or district** cannot be answered here. `dim_person` holds names only, and district and party are not on the pages we scrape.
 
 ### The podcast pipeline
 
@@ -82,7 +82,7 @@ Audio runs in its **own bucket and pipeline**. RSS → MP3 + metadata → Whispe
 
 ---
 
-## 4. Deep dive: text-to-SQL on gold
+## 4. Deep dive: text-to-SQL on the gold layer
 
 **Why this option:** Civic questions have a clear shape. People ask in English; the tables answer with `vote_value` and `final_disposition`.
 
@@ -93,10 +93,6 @@ Audio runs in its **own bucket and pipeline**. RSS → MP3 + metadata → Whispe
 3. **`guard_sql`:** allow only `SELECT` and `WITH`. Checks run on a copy with comments and quoted text stripped, so real data never trips them. Reject multiple statements and anything that writes. Add `LIMIT 200` if missing, then run it.
 4. Optional keyword search over ~60 second transcript chunks (SQLite full text search, no embeddings).
 5. A second model call writes a short answer, and it must use the returned rows rather than invented numbers.
-
-```bash
-python app/ask.py "Which supervisor votes 'No' most often?"
-```
 
 ![The Ask tab declining an off-topic question without querying the warehouse](images/ask-decline.png)
 
@@ -164,4 +160,4 @@ Public repo: [github.com/20sgt/Data-Architecture](https://github.com/20sgt/Data-
 
 **Do differently:** Alert on zero files *only when the calendar had meetings that week*. The scraper must tell "nothing happened" apart from "I failed to see it." Save `member_vote_record` as a table in dbt. Add a small list of nicknames so podcast tagging can attach a file number. Decide on purpose whether contributors can read bronze.
 
-**Presentation feedback:** *(Fill in after the final: what instructors or peers actually said and what changed because of it.)*
+**Presentation feedback:** *Feedback not yet received. We'll leave this blank and fill it in when we get it.*
