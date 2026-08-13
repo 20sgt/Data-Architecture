@@ -2,6 +2,37 @@
 
 Newest entries at the top.
 
+## [2026-08-12 00:00] — Blog draft: plain language, no em dashes, tightened
+
+**What:** Rewrote `BLOG_DRAFT.md` for a non-specialist reader. Replaced bold
+label periods with colons (`**Stack.**` → `**Stack:**`), removed every em dash,
+cut the jargon, and trimmed cross-section repetition.
+**Why:** The draft read as written for people who already know the stack. Terms
+like OLTP, CDC, multiset, controlled-vocabulary, liquid clustering, and
+insertion-order locality gated the whole document on vocabulary a neighbor,
+journalist, or first-year student does not have — the exact three readers §1
+claims to serve.
+**Files:** `BLOG_DRAFT.md`
+**Notes:** Two constraints pulled against each other. Plain wording is longer
+than jargon and short sentences cost a subject and verb each, so the jargon pass
+alone ran 2,061 → 2,123. The tightening pass brought it back to 2,061, but the
+~1,950 target was missed by 109 words.
+
+Retrospective: the miss came from a bad estimate. Cross-section repetition was
+diagnosed correctly (the four-table join explained four times, "save it as a
+table" recommended three times) but sized wrong — each repeat is a clause worth
+~6 words, not a paragraph worth ~30, so the real budget was about -60, not -173.
+Several early edits also fused sentences rather than deleting them, which nets
+one or two words; §3 and §5 grew before that was caught. Next time: count the
+words in a sample repeat before projecting a total.
+
+Deliberately kept: `text-to-SQL` (the technique's name and §4's subject),
+bronze/silver/gold (defined once in §2), all code identifiers, and the en dash in
+`2000–2026` (a numeric range, not a clause break). Line 3's subtitle still reads
+"a legislation **lakehouse**, a podcast **slice**" — the heaviest jargon left, in
+the first line a reader sees, untouched because renaming the project's framing is
+the author's call.
+
 ## [2026-08-08 12:58] — Cleanup: retire the superseded notebooks and stale docs
 
 **What:** Deleted the 5 PySpark notebooks that dbt replaced, corrected the README's
